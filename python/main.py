@@ -23,6 +23,8 @@ import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import get_settings
 from models.schemas import RecommendationRequest, RecommendationResponse
@@ -33,6 +35,8 @@ from services.metrics import MetricsCollector
 
 logger = structlog.get_logger()
 settings = get_settings()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 
 ab_engine = ABTestEngine()
@@ -63,6 +67,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount(
+    "/assets",
+    StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")),
+    name="assets",
+)
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/user", status_code=307)
+
+
+@app.get("/user")
+async def user_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "user.html"))
+
+
+@app.get("/admin")
+async def admin_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))
 
 
 @app.get("/health")

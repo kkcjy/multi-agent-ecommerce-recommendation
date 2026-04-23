@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | Multi-Agent Recommender</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body class="page page-admin">
+    <div class="bg-orb orb-c"></div>
+    <div class="bg-orb orb-d"></div>
+    <header class="topbar">
+      <h1 class="brand">NovaCart Control Room</h1>
+      <nav class="topnav">
+        <a class="nav-link" href="/user">User</a>
+        <a class="nav-link active" href="/admin">Admin</a>
+        <a class="nav-link" href="/redoc" target="_blank" rel="noreferrer">API Reference</a>
+      </nav>
+    </header>
+
+    <main class="layout admin-layout">
+      <section class="panel reveal">
+        <div class="section-head">
+          <h2>Experiments</h2>
+          <button id="reloadExperiments" type="button">Refresh</button>
+        </div>
+        <div id="experimentsContainer" class="stack"></div>
+      </section>
+
+      <section class="panel reveal delay-1">
+        <div class="section-head">
+          <h2>Agent Metrics</h2>
+          <button id="reloadMetrics" type="button">Refresh</button>
+        </div>
+        <div id="metricsContainer" class="stack"></div>
+      </section>
+
+      <section class="panel reveal delay-2">
+        <h2>Record Experiment Outcome</h2>
+        <form id="outcomeForm" class="form-grid">
+          <label>
+            Experiment ID
+            <input id="experimentId" type="text" value="rec_strategy" required />
+          </label>
+
+          <label>
+            Group Name
+            <input id="groupName" type="text" value="control" required />
+          </label>
+
+          <label>
+            Success
+            <select id="isSuccess">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+
+          <button type="submit">Submit Outcome</button>
+        </form>
+        <div id="outcomeState" class="status">Ready.</div>
+      </section>
+    </main>
+
+    <script src="/assets/admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Portal | Multi-Agent Recommender</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body class="page page-user">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <header class="topbar">
+      <h1 class="brand">NovaCart Recommender</h1>
+      <nav class="topnav">
+        <a class="nav-link active" href="/user">User</a>
+        <a class="nav-link" href="/admin">Admin</a>
+        <a class="nav-link" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel-form reveal">
+        <h2>Get Personalized Picks</h2>
+        <p class="muted">Submit user context and get recommendations from the multi-agent pipeline.</p>
+
+        <form id="recommend-form" class="form-grid">
+          <label>
+            User ID
+            <input id="userId" name="user_id" type="text" value="user_001" required />
+          </label>
+
+          <label>
+            Scene
+            <select id="scene" name="scene">
+              <option value="homepage">homepage</option>
+              <option value="detail">detail</option>
+              <option value="campaign">campaign</option>
+            </select>
+          </label>
+
+          <label>
+            Number of items
+            <input id="numItems" name="num_items" type="number" min="1" max="20" value="5" />
+          </label>
+
+          <label class="span-2">
+            Recent views (comma-separated)
+            <input id="recentViews" type="text" value="phone, earphones" />
+          </label>
+
+          <button id="submitBtn" type="submit">Run Recommendation</button>
+        </form>
+
+        <div id="requestState" class="status">Ready.</div>
+      </section>
+
+      <section class="panel panel-result reveal delay-1">
+        <div class="result-head">
+          <h2>Result</h2>
+          <div id="metaLine" class="pill">No request yet</div>
+        </div>
+
+        <div id="copyList" class="copy-list"></div>
+        <div id="productGrid" class="card-grid"></div>
+      </section>
+    </main>
+
+    <script src="/assets/user.js"></script>
+  </body>
+</html>

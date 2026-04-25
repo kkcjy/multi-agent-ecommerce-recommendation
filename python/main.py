@@ -27,9 +27,10 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import get_settings
+from containers.app_container import AppContainer
 from models.schemas import RecommendationRequest, RecommendationResponse
 from orchestrator.supervisor import SupervisorOrchestrator
-from orchestrator.graph import build_recommendation_graph
+from orchestrator.graph import build_recommendation_graph, set_container
 from services.ab_test import ABTestEngine
 from services.metrics import MetricsCollector
 
@@ -39,15 +40,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 
+# 初始化全局依赖注入容器
+container = AppContainer(settings=settings)
+
 ab_engine = ABTestEngine()
 metrics_collector = MetricsCollector()
-supervisor = SupervisorOrchestrator(ab_engine=ab_engine)
+supervisor = SupervisorOrchestrator(container=container, ab_engine=ab_engine)
 rec_graph = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global rec_graph
+    # 设置 LangGraph 全局容器
+    set_container(container)
     rec_graph = build_recommendation_graph()
     logger.info("app.startup", model=settings.llm_model)
     yield
@@ -116,9 +122,9 @@ async def recommend_via_graph(request: RecommendationRequest):
     }
     result = await rec_graph.ainvoke(state)
     return {
-        "request_id": result.get("request_id"),
-        "user_id": result.get("user_id"),
-        "products": [p.model_dump() for p in result.get("final_products", [])],
+        "request_id": result.get("request_id", ""),
+        "user_id": result.get("user_id", ""),
+        "products": [p.model_dump() if hasattr(p, "model_dump") else dict(p) for p in result.get("final_products", [])],
         "marketing_copies": result.get("marketing_copies", []),
         "experiment_group": result.get("experiment_group", "control"),
         "total_latency_ms": round(result.get("total_latency_ms", 0), 1),

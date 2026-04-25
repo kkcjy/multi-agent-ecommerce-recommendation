@@ -41,6 +41,7 @@ class Product(BaseModel):
     tags: list[str] = Field(default_factory=list)
     score: float = 0.0
     image_url: str = ""
+    explain: dict[str, Any] = Field(default_factory=dict)
 
 
 class RecommendationRequest(BaseModel):
@@ -68,6 +69,7 @@ class ProductRecResult(AgentResult):
     agent_name: str = "product_rec"
     products: list[Product] = Field(default_factory=list)
     recall_strategy: str = ""
+    explain: dict[str, Any] = Field(default_factory=dict)
 
 
 class MarketingCopyResult(AgentResult):

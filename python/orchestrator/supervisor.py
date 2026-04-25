@@ -32,6 +32,7 @@ from agents import (
     ProductRecAgent,
     UserProfileAgent,
 )
+from containers.app_container import AppContainer
 from models.schemas import (
     Product,
     RecommendationRequest,
@@ -46,9 +47,12 @@ logger = structlog.get_logger()
 class SupervisorOrchestrator:
     """Coordinates four agents in parallel-then-aggregate pattern."""
 
-    def __init__(self, ab_engine: ABTestEngine | None = None):
+    def __init__(
+        self, container: AppContainer, ab_engine: ABTestEngine | None = None
+    ):
+        self._container = container
         self.user_profile_agent = UserProfileAgent()
-        self.product_rec_agent = ProductRecAgent()
+        self.product_rec_agent = ProductRecAgent(container=container)
         self.marketing_copy_agent = MarketingCopyAgent()
         self.inventory_agent = InventoryAgent()
         self.ab_engine = ab_engine or ABTestEngine()

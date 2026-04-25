@@ -24,6 +24,7 @@ from agents import (
     ProductRecAgent,
     UserProfileAgent,
 )
+from containers.app_container import AppContainer
 from models.schemas import Product, UserProfile
 from services.ab_test import ABTestEngine
 
@@ -35,6 +36,7 @@ class PipelineState(TypedDict, total=False):
     num_items: int
     context: dict[str, Any]
     experiment_group: str
+    container: AppContainer  # 依赖注入容器
 
     user_profile: UserProfile | None
     raw_products: list[Product]
@@ -48,11 +50,33 @@ class PipelineState(TypedDict, total=False):
     _start_time: float
 
 
+# 全局容器（由 main.py 初始化时设置）
+_container: AppContainer | None = None
+
+
+def set_container(container: AppContainer):
+    """设置全局依赖注入容器"""
+    global _container
+    _container = container
+
+
+def get_container() -> AppContainer:
+    """获取全局容器"""
+    global _container
+    if _container is None:
+        _container = AppContainer()
+    return _container
+
+
 user_profile_agent = UserProfileAgent()
-product_rec_agent = ProductRecAgent()
 marketing_copy_agent = MarketingCopyAgent()
 inventory_agent = InventoryAgent()
 ab_engine = ABTestEngine()
+
+
+def _get_product_rec_agent() -> ProductRecAgent:
+    """获取 ProductRecAgent（带容器注入）"""
+    return ProductRecAgent(container=get_container())
 
 
 async def init_node(state: PipelineState) -> PipelineState:
@@ -75,7 +99,7 @@ async def user_profile_node(state: PipelineState) -> PipelineState:
 
 
 async def product_recall_node(state: PipelineState) -> PipelineState:
-    result = await product_rec_agent.run(
+    result = await _get_product_rec_agent().run(
         user_profile=None,
         num_items=state.get("num_items", 10) * 2,
     )
@@ -96,7 +120,7 @@ async def parallel_phase1(state: PipelineState) -> PipelineState:
 
 
 async def rerank_node(state: PipelineState) -> PipelineState:
-    result = await product_rec_agent.run(
+    result = await _get_product_rec_agent().run(
         user_profile=state.get("user_profile"),
         num_items=state.get("num_items", 10),
     )

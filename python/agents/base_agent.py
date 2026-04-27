@@ -7,29 +7,52 @@ from typing import Any
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from config import get_settings
 from models.schemas import AgentResult
 
 logger = structlog.get_logger()
 
 
 class BaseAgent(ABC):
-    """All agents inherit from this base class with retry, timeout, and fallback."""
+    """所有Agent基类: 重试、超时、降级处理机制。
+    
+    特性 (阶段 4):
+    - 使用 settings 中的动态超时/重试配置
+    - 指数退避重试策略: backoff_factor=0.5, max=4s
+    - 电路断路器计划 (简化版: 跟踪调用计数)
+    """
 
-    def __init__(self, name: str, timeout: float = 10.0, max_retries: int = 2):
+    def __init__(self, name: str, timeout: float = 10.0):
+        settings = get_settings()
         self.name = name
         self.timeout = timeout
-        self.max_retries = max_retries
+        # 从 settings 获取重试配置 (阶段 4)
+        self.max_retries = settings.agent_max_retries
+        self.retry_backoff_factor = settings.agent_retry_backoff_factor
+        self.retry_backoff_max = settings.agent_retry_backoff_max
+        
+        # 电路断路器状态 (简化版)
         self._call_count = 0
         self._error_count = 0
+        self._circuit_breaker_enabled = settings.circuit_breaker_enabled
+        self._circuit_breaker_threshold = settings.circuit_breaker_failure_threshold
+        self._circuit_breaker_window = settings.circuit_breaker_window_seconds
+        self._error_timestamps: list[float] = []  # 用于跟踪错误时间窗口
 
     @abstractmethod
     async def _execute(self, **kwargs: Any) -> AgentResult:
-        """Core logic implemented by each concrete agent."""
+        """核心逻辑，由具体的Agent实现。"""
 
     async def run(self, **kwargs: Any) -> AgentResult:
-        """Public entry: wraps _execute with timing, retries, and fallback."""
+        """公共入口: 包装 _execute，添加计时、重试、降级处理。"""
         start = time.perf_counter()
         self._call_count += 1
+
+        # 检查电路断路器状态 (阶段 4)
+        if self._is_circuit_breaker_open():
+            logger.warning("agent.circuit_breaker_open", agent=self.name)
+            latency_ms = (time.perf_counter() - start) * 1000
+            return self._fallback(latency_ms, Exception("Circuit breaker open"))
 
         try:
             result = await self._retry_execute(**kwargs)
@@ -42,14 +65,20 @@ class BaseAgent(ABC):
             return result
         except Exception as exc:
             self._error_count += 1
+            self._error_timestamps.append(time.time())
             latency_ms = (time.perf_counter() - start) * 1000
             logger.error("agent.failed", agent=self.name, error=str(exc))
             return self._fallback(latency_ms, exc)
 
     async def _retry_execute(self, **kwargs: Any) -> AgentResult:
+        """应用指数退避重试策略 (从 settings 读取参数)."""
         @retry(
             stop=stop_after_attempt(self.max_retries),
-            wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
+            wait=wait_exponential(
+                multiplier=self.retry_backoff_factor,
+                min=self.retry_backoff_factor,
+                max=self.retry_backoff_max,
+            ),
             reraise=True,
         )
         async def _inner():
@@ -57,8 +86,28 @@ class BaseAgent(ABC):
 
         return await _inner()
 
+    def _is_circuit_breaker_open(self) -> bool:
+        """检查电路断路器是否打开。
+        
+        规则: 如果时间窗口内错误数 >= 阈值，打开断路器。
+        """
+        if not self._circuit_breaker_enabled:
+            return False
+        
+        now = time.time()
+        # 清理时间窗口外的错误记录
+        self._error_timestamps = [
+            ts for ts in self._error_timestamps
+            if now - ts < self._circuit_breaker_window
+        ]
+        
+        # 检查是否达到阈值
+        if len(self._error_timestamps) >= self._circuit_breaker_threshold:
+            return True
+        return False
+
     def _fallback(self, latency_ms: float, exc: Exception) -> AgentResult:
-        """Return a degraded but valid result when the agent fails."""
+        """Agent失败时返回降级结果."""
         return AgentResult(
             agent_name=self.name,
             success=False,

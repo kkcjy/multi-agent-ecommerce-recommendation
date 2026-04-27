@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-04-27 20:14:01",
+  "total_requests": 647,
+  "total_failures": 0,
+  "error_rate_percent": 0.0,
+  "avg_latency_ms": 21.42425093048078,
+  "requests": [
+    {
+      "endpoint": "/metrics",
+      "method": "GET",
+      "requests": 325,
+      "failures": 0,
+      "error_rate": 0.0,
+      "avg_latency_ms": 15.850609203088634,
+      "min_latency_ms": 3.9052260035532527,
+      "max_latency_ms": 94.3924480015994,
+      "p50_latency_ms": 12,
+      "p95_latency_ms": 31,
+      "p99_latency_ms": 39
+    },
+    {
+      "endpoint": "/api/v1/recommend",
+      "method": "POST",
+      "requests": 291,
+      "failures": 0,
+      "error_rate": 0.0,
+      "avg_latency_ms": 29.59612902754232,
+      "min_latency_ms": 2.6107369994861074,
+      "max_latency_ms": 1396.9865339968237,
+      "p50_latency_ms": 2,
+      "p95_latency_ms": 192,
+      "p99_latency_ms": 192
+    },
+    {
+      "endpoint": "/api/v1/metrics",
+      "method": "GET",
+      "requests": 31,
+      "failures": 0,
+      "error_rate": 0.0,
+      "avg_latency_ms": 3.1473810968530036,
+      "min_latency_ms": 2.065754000796005,
+      "max_latency_ms": 13.287330999446567,
+      "p50_latency_ms": 13,
+      "p95_latency_ms": 16,
+      "p99_latency_ms": 16
+    }
+  ]
+}

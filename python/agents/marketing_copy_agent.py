@@ -51,6 +51,11 @@ FORBIDDEN_WORDS = [
     "永久", "万能", "祖传", "纯天然",
 ]
 
+# 预编译正则表达式 (阶段 2C)
+_FORBIDDEN_WORDS_PATTERNS = {
+    word: re.compile(re.escape(word)) for word in FORBIDDEN_WORDS
+}
+
 COPY_OUTPUT_INSTRUCTION = """
 请以JSON数组格式输出,每个元素格式:
 [{"product_id": "xxx", "copy": "文案内容"}]
@@ -129,9 +134,12 @@ class MarketingCopyAgent(BaseAgent):
             return []
 
     def _compliance_check(self, copy_item: dict[str, str]) -> dict[str, str]:
-        """Filter forbidden advertising words per Chinese Ad Law."""
+        """过滤违反广告法的禁用词汇。
+        
+        优化 (阶段 2C): 使用预编译的正则表达式，避免每次都重新编译。
+        """
         text = copy_item.get("copy", "")
-        for word in FORBIDDEN_WORDS:
-            text = re.sub(re.escape(word), "***", text)
+        for word, pattern in _FORBIDDEN_WORDS_PATTERNS.items():
+            text = pattern.sub("***", text)
         copy_item["copy"] = text
         return copy_item

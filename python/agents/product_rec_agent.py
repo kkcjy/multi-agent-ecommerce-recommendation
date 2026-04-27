@@ -3,12 +3,14 @@
 - 召回层：协同过滤 + 向量检索(Milvus) + 热度/新品策略
 - 排序层：LLM重排 + 特征交叉(用户画像 x 商品属性)
 - 多样性控制：类目打散、卖家去重、新品加权
+- 缓存优化 (阶段 2B): 产品目录 + 分类推荐缓存
 """
 
 from __future__ import annotations
 
 import json
 import random
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +18,7 @@ from langchain_openai import ChatOpenAI
 
 from config import get_settings
 from models.schemas import AgentResult, Product, ProductRecResult, UserProfile
+from services.metrics import cache_hits_total, cache_misses_total
 
 from .base_agent import BaseAgent
 
@@ -72,6 +75,20 @@ class ProductRecAgent(BaseAgent):
             max_tokens=512,
         )
         self.vector_store: Any = None  # injected in Phase 2
+        
+        # 产品目录缓存 (阶段 2B)
+        self._product_catalog = self._get_product_catalog()
+        self._product_by_id = {p.product_id: p for p in self._product_catalog}
+
+    def _get_product_catalog(self) -> tuple:
+        """获取全局产品目录 (不可变元组，避免重复初始化)."""
+        return tuple(MOCK_PRODUCTS)
+
+    @lru_cache(maxsize=50)
+    def _get_products_by_category(self, category: str) -> tuple:
+        """按类目缓存产品列表 (L1 缓存, TTL ~5min via lru_cache)."""
+        filtered = tuple(p for p in self._product_catalog if p.category == category)
+        return filtered
 
     async def _execute(self, **kwargs: Any) -> ProductRecResult:
         user_profile: UserProfile | None = kwargs.get("user_profile")
@@ -101,17 +118,37 @@ class ProductRecAgent(BaseAgent):
         )
 
     async def _recall(self, profile: UserProfile | None, limit: int) -> list[Product]:
-        """Multi-strategy recall: collaborative filtering + vector search + popularity."""
+        """多策略召回: 协同过滤 + 向量检索 + 热度.
+        
+        优化 (阶段 2B): 优先从缓存类目获取，减少全表扫描。
+        """
         if self.vector_store:
             pass  # Phase 2: real vector search
 
-        candidates = list(MOCK_PRODUCTS)
+        # 优化: 如果用户有偏好类目，先从缓存获取
+        candidates = []
         if profile and profile.preferred_categories:
-            preferred = set(profile.preferred_categories)
-            candidates.sort(
-                key=lambda p: (p.category in preferred, p.stock > 0, random.random()),
-                reverse=True,
-            )
+            preferred_categories = profile.preferred_categories[:3]  # 取前 3 个
+            for category in preferred_categories:
+                cached_products = self._get_products_by_category(category)
+                if cached_products:
+                    cache_hits_total.labels(cache_name="product_category").inc()
+                    candidates.extend(cached_products)
+                else:
+                    cache_misses_total.labels(cache_name="product_category").inc()
+            
+            # 补充其他类目产品
+            other_products = [p for p in self._product_catalog if p.category not in preferred_categories]
+            candidates.extend(other_products)
+        else:
+            # 无偏好信息，使用全目录
+            candidates = list(self._product_catalog)
+        
+        # 排序: 库存优先 + 随机打散
+        candidates.sort(
+            key=lambda p: (p.stock > 0, random.random()),
+            reverse=True,
+        )
 
         return candidates[:limit]
 

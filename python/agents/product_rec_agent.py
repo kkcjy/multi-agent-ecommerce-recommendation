@@ -67,13 +67,16 @@ class ProductRecAgent(BaseAgent):
             name="product_rec",
             timeout=settings.agent_timeout_product_rec,
         )
-        self.llm = ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            model=settings.llm_model,
-            temperature=0.3,
-            max_tokens=512,
-        )
+        self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.llm: ChatOpenAI | None = None
+        if self.llm_enabled:
+            self.llm = ChatOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                temperature=0.3,
+                max_tokens=512,
+            )
         self.vector_store: Any = None  # injected in Phase 2
         
         # 产品目录缓存 (阶段 2B)
@@ -158,6 +161,9 @@ class ProductRecAgent(BaseAgent):
         if not profile:
             return [p.product_id for p in candidates[:num_items]]
 
+        if not self.llm:
+            return self._fallback_rerank(profile, candidates, num_items)
+
         profile_summary = {
             "segments": [s.value for s in profile.segments],
             "preferred_categories": profile.preferred_categories,
@@ -184,3 +190,32 @@ class ProductRecAgent(BaseAgent):
             return json.loads(raw)
         except (json.JSONDecodeError, IndexError):
             return [p.product_id for p in candidates[:num_items]]
+
+    def _fallback_rerank(
+        self, profile: UserProfile, candidates: list[Product], num_items: int
+    ) -> list[str]:
+        preferred = set(profile.preferred_categories)
+        low, high = profile.price_range
+
+        def score(product: Product) -> tuple[int, int, float, int, float]:
+            preferred_hit = 1 if product.category in preferred else 0
+            in_range = 1 if low <= product.price <= high else 0
+
+            if in_range:
+                distance = 0.0
+            elif product.price < low:
+                distance = low - product.price
+            else:
+                distance = product.price - high
+
+            new_item = 1 if "新品" in product.tags else 0
+            return (
+                preferred_hit,
+                in_range,
+                new_item,
+                product.stock,
+                -distance,
+            )
+
+        sorted_products = sorted(candidates, key=score, reverse=True)
+        return [p.product_id for p in sorted_products[:num_items]]

@@ -11,7 +11,7 @@ graph TB
 
     subgraph Orchestrator Layer
         supervisor[SupervisorOrchestrator]
-        graph[LangGraph Pipeline]
+        lang_graph[LangGraph Pipeline]
     end
 
     subgraph Agent Layer
@@ -37,17 +37,17 @@ graph TB
 
     main --> endpoints
     endpoints --> supervisor
-    endpoints --> graph
+    endpoints --> lang_graph
     
     supervisor --> user_agent
     supervisor --> rec_agent
     supervisor --> copy_agent
     supervisor --> inv_agent
     
-    graph --> user_agent
-    graph --> rec_agent
-    graph --> copy_agent
-    graph --> inv_agent
+    lang_graph --> user_agent
+    lang_graph --> rec_agent
+    lang_graph --> copy_agent
+    lang_graph --> inv_agent
     
     rec_agent --> container
     container --> repo
@@ -59,7 +59,7 @@ graph TB
     repo -.-> db_repo
     
     supervisor --> ab
-    graph --> ab
+    lang_graph --> ab
 ```
 
 ## 模块依赖关系

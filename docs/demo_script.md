@@ -243,8 +243,8 @@ curl -X POST http://localhost:8000/api/v1/recommend \
 |--------|------|---------|
 | Mock 常量不再硬编码在 Agent | ✅ | `grep -r "MOCK_PRODUCTS" agents/` 无结果 |
 | 数据源不可用时降级 | ✅ | `test_fallback_when_empty` 测试通过 |
-| 两条接口字段一致 | ✅ | `test_graph_and_supervisor_output_aligned` 通过 |
-| 至少 3 条单元测试 | ✅ | 已创建 13+ 条测试 |
+| 两条接口字段一致 | ✅ | `test_graph_supervisor_alignment.py` 通过（8 条测试） |
+| 至少 3 条单元测试 | ✅ | 已创建 20+ 条测试（repository 10 条 + container 9 条 + alignment 8 条） |
 | 架构文档 | ✅ | `docs/architecture/system_architecture.md` |
 | 演示脚本 | ✅ | 本文档 |
 
@@ -270,7 +270,7 @@ python/
     ├── test_repositories.py          # Repository 测试
     ├── test_container.py             # 容器测试
     ├── test_product_rec_agent.py     # Agent 测试
-    └── test_supervisor_integration.py # 集成测试
+    └── test_graph_supervisor_alignment.py # 对齐测试
 
 docs/
 └── architecture/

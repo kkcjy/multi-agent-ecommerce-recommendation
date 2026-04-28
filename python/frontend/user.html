@@ -30,6 +30,7 @@
           <label>
             User ID
             <input id="userId" name="user_id" type="text" value="user_001" required />
+            <small id="userIdHint" class="field-hint">Required. Example: user_001</small>
           </label>
 
           <label>
@@ -44,11 +45,13 @@
           <label>
             Number of items
             <input id="numItems" name="num_items" type="number" min="1" max="20" value="5" />
+            <small id="numItemsHint" class="field-hint">Allowed range: 1-20.</small>
           </label>
 
           <label class="span-2">
             Recent views (comma-separated)
             <input id="recentViews" type="text" value="phone, earphones" />
+            <small id="recentViewsHint" class="field-hint">Example: phone, earphones, laptop</small>
           </label>
 
           <button id="submitBtn" type="submit">Run Recommendation</button>
@@ -64,10 +67,15 @@
         </div>
 
         <div id="copyList" class="copy-list"></div>
+        <div class="result-block">
+          <h3>Recommendation Reasons</h3>
+          <div id="reasonList" class="reason-list"></div>
+        </div>
         <div id="productGrid" class="card-grid"></div>
       </section>
     </main>
 
+    <script src="/assets/common.js"></script>
     <script src="/assets/user.js"></script>
   </body>
 </html>

@@ -69,13 +69,16 @@ class MarketingCopyAgent(BaseAgent):
             name="marketing_copy",
             timeout=settings.agent_timeout_marketing_copy,
         )
-        self.llm = ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            model=settings.llm_model,
-            temperature=0.9,
-            max_tokens=2048,
-        )
+        self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.llm: ChatOpenAI | None = None
+        if self.llm_enabled:
+            self.llm = ChatOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                temperature=0.9,
+                max_tokens=2048,
+            )
 
     async def _execute(self, **kwargs: Any) -> MarketingCopyResult:
         user_profile: UserProfile | None = kwargs.get("user_profile")
@@ -83,6 +86,23 @@ class MarketingCopyAgent(BaseAgent):
 
         if not products:
             return MarketingCopyResult(success=True, copies=[], confidence=1.0)
+
+        if not self.llm:
+            fallback_copies = [
+                {
+                    "product_id": product.product_id,
+                    "title": product.name,
+                    "copy": self._fallback_copy(user_profile, product),
+                }
+                for product in products
+            ]
+            return MarketingCopyResult(
+                success=True,
+                copies=fallback_copies,
+                prompt_template_used="fallback_template",
+                data={"fallback": "llm_disabled"},
+                confidence=0.7,
+            )
 
         template_key = self._select_template(user_profile)
         system_prompt = PROMPT_TEMPLATES[template_key]
@@ -143,3 +163,21 @@ class MarketingCopyAgent(BaseAgent):
             text = pattern.sub("***", text)
         copy_item["copy"] = text
         return copy_item
+
+    def _fallback_copy(self, profile: UserProfile | None, product: Product) -> str:
+        segment = UserSegment.ACTIVE
+        if profile and profile.segments:
+            segment = profile.segments[0]
+
+        if segment == UserSegment.NEW_USER:
+            text = f"新用户专享推荐：{product.name}，现在下单更划算，快来看看。"
+        elif segment == UserSegment.HIGH_VALUE:
+            text = f"为您精选高品质单品 {product.name}，兼顾性能与体验，值得入手。"
+        elif segment == UserSegment.PRICE_SENSITIVE:
+            text = f"高性价比推荐：{product.name}，当前价格友好，适合立即下单。"
+        elif segment == UserSegment.CHURN_RISK:
+            text = f"好久不见，为你保留了 {product.name}，现在回归可享专属优惠。"
+        else:
+            text = f"根据你的近期偏好，推荐 {product.name}，适配当前浏览场景。"
+
+        return self._compliance_check({"copy": text})["copy"]

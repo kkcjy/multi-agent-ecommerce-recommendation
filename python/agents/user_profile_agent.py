@@ -48,13 +48,16 @@ class UserProfileAgent(BaseAgent):
             name="user_profile",
             timeout=settings.agent_timeout_user_profile,
         )
-        self.llm = ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            model=settings.llm_model,
-            temperature=0.3,
-            max_tokens=1024,
-        )
+        self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.llm: ChatOpenAI | None = None
+        if self.llm_enabled:
+            self.llm = ChatOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                temperature=0.3,
+                max_tokens=1024,
+            )
         self.feature_store: Any = None  # injected in Phase 2
         
         # 缓存配置 (阶段 2A)
@@ -78,7 +81,7 @@ class UserProfileAgent(BaseAgent):
         return UserProfileResult(
             success=True,
             profile=profile_data,
-            data={"source": "cache_or_llm"},
+            data={"source": "cache_or_fallback_or_llm"},
             confidence=0.85,
         )
 
@@ -105,20 +108,24 @@ class UserProfileAgent(BaseAgent):
             
             cache_misses_total.labels(cache_name="user_profile_redis").inc()
         
-        # L1 + L2 都未命中，从 LLM 生成新画像
+        # L1 + L2 都未命中，从 LLM 或本地 fallback 生成新画像
         behavior_data = await self._collect_behavior(user_id, context)
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=f"用户ID: {user_id}\n行为数据: {json.dumps(behavior_data, ensure_ascii=False)}"),
-        ]
-        response = await self.llm.ainvoke(messages)
-        profile_data = self._parse_profile(user_id, response.content)
-        
+
+        if not self.llm:
+            profile_data = self._fallback_profile(user_id, behavior_data)
+        else:
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=f"用户ID: {user_id}\n行为数据: {json.dumps(behavior_data, ensure_ascii=False)}"),
+            ]
+            response = await self.llm.ainvoke(messages)
+            profile_data = self._parse_profile(user_id, response.content)
+
         # 写入缓存 (L1 + L2)
         self._set_local_cache(user_id, profile_data)
         if self.redis_client:
             self._set_redis_cache(user_id, profile_data)
-        
+
         return profile_data
 
     @lru_cache(maxsize=128)
@@ -204,4 +211,45 @@ class UserProfileAgent(BaseAgent):
             price_range=price_range,
             rfm_score=data.get("rfm_score", {}),
             real_time_tags=data.get("real_time_tags", {}),
+        )
+
+    def _fallback_profile(self, user_id: str, behavior_data: dict[str, Any]) -> UserProfile:
+        views = [str(v) for v in behavior_data.get("recent_views", [])]
+        purchases = int(behavior_data.get("purchase_count_30d", 0) or 0)
+        avg_amount = float(behavior_data.get("avg_order_amount", 0.0) or 0.0)
+
+        preferred = []
+        for item in views:
+            normalized = item.strip()
+            if normalized and normalized not in preferred:
+                preferred.append(normalized)
+            if len(preferred) >= 3:
+                break
+
+        segments: list[UserSegment] = [UserSegment.ACTIVE]
+        if purchases <= 1:
+            segments.append(UserSegment.NEW_USER)
+        if avg_amount >= 800:
+            segments.append(UserSegment.HIGH_VALUE)
+        if avg_amount <= 300:
+            segments.append(UserSegment.PRICE_SENSITIVE)
+
+        unique_segments = []
+        seen = set()
+        for seg in segments:
+            if seg not in seen:
+                unique_segments.append(seg)
+                seen.add(seg)
+
+        return UserProfile(
+            user_id=user_id,
+            segments=unique_segments,
+            preferred_categories=preferred,
+            price_range=(0.0, max(2000.0, avg_amount * 8 if avg_amount > 0 else 3000.0)),
+            rfm_score={
+                "recency": 0.6,
+                "frequency": min(1.0, purchases / 10.0),
+                "monetary": min(1.0, avg_amount / 2000.0),
+            },
+            real_time_tags={"source": "fallback"},
         )

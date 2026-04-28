@@ -1,18 +1,5 @@
 """
-性能报告生成脚本
-
 用于将 Locust 压测的 JSON 输出转换为 HTML 可视化报告。
-
-使用方法:
-  1. 运行 Locust 压测并生成 JSON 报告:
-     locust -f tests/load_test_locust.py --host=http://localhost:8866 --users=100 --spawn-rate=2 --run-time=60s 2>&1 | tee baseline.log
-  
-  2. 手动将 Locust 输出的 JSON 复制到 reports/baseline.json
-
-  3. 运行此脚本生成 HTML 报告:
-     python reports/generate_perf_report.py reports/baseline.json reports/baseline_report.html
-
-  4. 用浏览器打开 HTML 文件查看报告
 """
 
 import json

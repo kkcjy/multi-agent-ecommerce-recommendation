@@ -1,10 +1,3 @@
-# 测试脚本
-# bash run_performance_test.sh
-# HTML 报告 (可视化图表)
-# open reports/baseline_report.html
-# JSON 数据 (原始数据)
-# cat reports/baseline.json | python -m json.tool
-
 #!/bin/bash
 
 # 🚀 性能测试一键脚本
@@ -149,16 +142,6 @@ if [ -n "$LATEST_JSON" ]; then
 else
     log_warning "未找到压测数据文件"
 fi
-
-# ============================================================================
-# 清理 (可选：如果需要保持服务运行，注释掉下面的代码)
-# ============================================================================
-# log_info "清理..."
-# if kill $SERVICE_PID 2>/dev/null; then
-#     log_success "服务已停止"
-# fi
-#
-# 服务保持运行，PID: $SERVICE_PID
 
 # ============================================================================
 # 完成

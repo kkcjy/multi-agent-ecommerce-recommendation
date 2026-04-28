@@ -147,7 +147,7 @@
     <div class="container">
         <header>
             <h1>🚀 性能测试报告</h1>
-            <p class="timestamp">生成时间: 2026-04-27 20:02:57</p>
+            <p class="timestamp">生成时间: 2026-04-28 10:08:15</p>
         </header>
         
         <div class="content">
@@ -155,7 +155,7 @@
             <section class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-label">总请求数</div>
-                    <div class="metric-value">650</div>
+                    <div class="metric-value">620</div>
                 </div>
                 
                 <div class="metric-card">
@@ -170,22 +170,7 @@
                 
                 <div class="metric-card">
                     <div class="metric-label">平均延迟</div>
-                    <div class="metric-value">20.6ms</div>
-                </div>
-            </section>
-            
-            <!-- 图表区域 -->
-            <section class="chart-section">
-                <h2>📊 端点延迟对比 (平均 vs P95)</h2>
-                <div class="chart-container">
-                    <canvas id="latencyChart"></canvas>
-                </div>
-            </section>
-            
-            <section class="chart-section">
-                <h2>⚠️ 端点错误率分布</h2>
-                <div class="chart-container">
-                    <canvas id="errorRateChart"></canvas>
+                    <div class="metric-value">23.1ms</div>
                 </div>
             </section>
             
@@ -211,37 +196,37 @@
                         <tr>
                             <td>/metrics</td>
                             <td>GET</td>
-                            <td>325</td>
+                            <td>300</td>
                             <td>0</td>
                             <td class="status-healthy">0.00%</td>
-                            <td>15.8</td>
-                            <td>10.0</td>
-                            <td>35.0</td>
-                            <td>38.0</td>
+                            <td>15.2</td>
+                            <td>5.0</td>
+                            <td>28.0</td>
+                            <td>29.0</td>
                         </tr>
 
                         <tr>
                             <td>/api/v1/metrics</td>
                             <td>GET</td>
-                            <td>38</td>
+                            <td>36</td>
                             <td>0</td>
                             <td class="status-healthy">0.00%</td>
-                            <td>2.9</td>
-                            <td>2.0</td>
-                            <td>20.0</td>
-                            <td>20.0</td>
+                            <td>7.2</td>
+                            <td>1.0</td>
+                            <td>16.0</td>
+                            <td>16.0</td>
                         </tr>
 
                         <tr>
                             <td>/api/v1/recommend</td>
                             <td>POST</td>
-                            <td>287</td>
+                            <td>284</td>
                             <td>0</td>
                             <td class="status-healthy">0.00%</td>
-                            <td>28.4</td>
-                            <td>2.0</td>
-                            <td>173.0</td>
-                            <td>173.0</td>
+                            <td>33.5</td>
+                            <td>1.0</td>
+                            <td>55.0</td>
+                            <td>163.0</td>
                         </tr>
 
                     </tbody>
@@ -264,14 +249,14 @@
                 datasets: [
                     {
                         label: '平均延迟 (ms)',
-                        data: [15.751126083173753, 2.855367683974021, 28.378013926959767],
+                        data: [15.172371320018101, 7.208439583349799, 33.50420214435961],
                         backgroundColor: '#667eea',
                         borderColor: '#667eea',
                         borderWidth: 1,
                     },
                     {
                         label: 'P95 延迟 (ms)',
-                        data: [35, 20, 173],
+                        data: [28, 16, 55],
                         backgroundColor: '#764ba2',
                         borderColor: '#764ba2',
                         borderWidth: 1,

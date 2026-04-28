@@ -130,17 +130,10 @@ log_success "压测完成"
 log_info "Step 6/6: 生成性能报告..."
 
 # 找到最新的 JSON 报告
-LATEST_JSON=$(ls -t performance_report_*.json 2>/dev/null | head -1)
+LATEST_JSON=$(ls -t reports/baseline.json 2>/dev/null | head -1)
 
 if [ -n "$LATEST_JSON" ]; then
     log_success "找到压测数据: $LATEST_JSON"
-    
-    # 创建 reports 目录
-    mkdir -p "$PROJECT_ROOT/reports"
-    
-    # 复制数据
-    cp "$LATEST_JSON" "$PROJECT_ROOT/reports/baseline.json"
-    log_success "数据已保存到 reports/baseline.json"
     
     # 生成 HTML 报告
     python "$PYTHON_DIR/reports/generate_perf_report.py" \

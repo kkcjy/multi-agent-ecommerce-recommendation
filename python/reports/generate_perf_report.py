@@ -215,21 +215,6 @@ def generate_html_report(json_data: dict[str, Any], output_file: str):
                 </div>
             </section>
             
-            <!-- 图表区域 -->
-            <section class="chart-section">
-                <h2>📊 端点延迟对比 (平均 vs P95)</h2>
-                <div class="chart-container">
-                    <canvas id="latencyChart"></canvas>
-                </div>
-            </section>
-            
-            <section class="chart-section">
-                <h2>⚠️ 端点错误率分布</h2>
-                <div class="chart-container">
-                    <canvas id="errorRateChart"></canvas>
-                </div>
-            </section>
-            
             <!-- 详细表格 -->
             <section class="chart-section">
                 <h2>📋 详细指标表</h2>

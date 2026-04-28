@@ -73,7 +73,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_timeout_middleware(request: Request, call_next):
-    """请求级超时处理 (阶段 4)。
+    """请求级超时处理。
     
     对于耗时的推荐请求，使用 settings 中配置的超时时间。
     """

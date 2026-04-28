@@ -51,7 +51,7 @@ FORBIDDEN_WORDS = [
     "永久", "万能", "祖传", "纯天然",
 ]
 
-# 预编译正则表达式 (阶段 2C)
+# 预编译正则表达式
 _FORBIDDEN_WORDS_PATTERNS = {
     word: re.compile(re.escape(word)) for word in FORBIDDEN_WORDS
 }
@@ -156,7 +156,7 @@ class MarketingCopyAgent(BaseAgent):
     def _compliance_check(self, copy_item: dict[str, str]) -> dict[str, str]:
         """过滤违反广告法的禁用词汇。
         
-        优化 (阶段 2C): 使用预编译的正则表达式，避免每次都重新编译。
+        优化: 使用预编译的正则表达式，避免每次都重新编译。
         """
         text = copy_item.get("copy", "")
         for word, pattern in _FORBIDDEN_WORDS_PATTERNS.items():

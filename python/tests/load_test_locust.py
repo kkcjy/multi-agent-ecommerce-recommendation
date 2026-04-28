@@ -1,19 +1,23 @@
 """
-Locust 压测脚本 — 性能基线 & 优化对比
+Locust 压测脚本
 
-使用方法:
-  # 场景 1: 正常流量 (100 用户, 2 RPS, 60s)
-  locust -f load_test_locust.py --host=http://localhost:8866 --users=100 --spawn-rate=2 --run-time=60s --scenario=normal
+功能:
+* 模拟混合流量：
+  * 推荐请求（≈90%）
+  * 指标查询（≈10%）
+  * Prometheus 抓取（固定频率）
+* 输出性能指标：
+  * 请求数 / 错误率
+  * 平均延迟、P50 / P95 / P99
+* 生成 JSON 报告（baseline.json）
 
-  # 场景 2: 峰值突刺 (500 用户, 10 RPS, 30s)
-  locust -f load_test_locust.py --host=http://localhost:8866 --users=500 --spawn-rate=10 --run-time=30s --scenario=spike
+使用:
+locust -f load_test_locust.py --host=http://localhost:8866 --users=100 --spawn-rate=2 --run-time=60s
 
-  # 场景 3: 管理接口并发查询 (50 用户, 全速, 30s)
-  locust -f load_test_locust.py --host=http://localhost:8866 --users=50 --run-time=30s --scenario=metrics
-
-实时监控:
-  访问 http://localhost:8089 查看 Locust 仪表盘
+监控:
+http://localhost:8089
 """
+
 
 from __future__ import annotations
 

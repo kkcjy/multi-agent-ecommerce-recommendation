@@ -1,48 +1,48 @@
 {
-  "timestamp": "2026-04-28 10:08:15",
-  "total_requests": 620,
+  "timestamp": "2026-04-28 13:20:37",
+  "total_requests": 639,
   "total_failures": 0,
   "error_rate_percent": 0.0,
-  "avg_latency_ms": 23.107110693555086,
+  "avg_latency_ms": 41.83038815801598,
   "requests": [
     {
       "endpoint": "/metrics",
       "method": "GET",
-      "requests": 300,
+      "requests": 325,
       "failures": 0,
       "error_rate": 0.0,
-      "avg_latency_ms": 15.172371320018101,
-      "min_latency_ms": 3.6069309999220422,
-      "max_latency_ms": 92.21254900012354,
-      "p50_latency_ms": 5,
-      "p95_latency_ms": 28,
-      "p99_latency_ms": 29
+      "avg_latency_ms": 10.474179532253542,
+      "min_latency_ms": 3.3521429995744256,
+      "max_latency_ms": 93.57674999955634,
+      "p50_latency_ms": 4,
+      "p95_latency_ms": 59,
+      "p99_latency_ms": 64
     },
     {
       "endpoint": "/api/v1/metrics",
       "method": "GET",
-      "requests": 36,
+      "requests": 26,
       "failures": 0,
       "error_rate": 0.0,
-      "avg_latency_ms": 7.208439583349799,
-      "min_latency_ms": 1.7147849998764286,
-      "max_latency_ms": 86.53297799992288,
+      "avg_latency_ms": 3.208027269325752,
+      "min_latency_ms": 2.038066000750405,
+      "max_latency_ms": 11.87934200061136,
       "p50_latency_ms": 1,
-      "p95_latency_ms": 16,
-      "p99_latency_ms": 16
+      "p95_latency_ms": 18,
+      "p99_latency_ms": 18
     },
     {
       "endpoint": "/api/v1/recommend",
       "method": "POST",
-      "requests": 284,
+      "requests": 288,
       "failures": 0,
       "error_rate": 0.0,
-      "avg_latency_ms": 33.50420214435961,
-      "min_latency_ms": 2.772911999727512,
-      "max_latency_ms": 1512.1520180000516,
-      "p50_latency_ms": 1,
-      "p95_latency_ms": 55,
-      "p99_latency_ms": 163
+      "avg_latency_ms": 80.70173949995605,
+      "min_latency_ms": 2.8903959992021555,
+      "max_latency_ms": 4892.942483000297,
+      "p50_latency_ms": 2,
+      "p95_latency_ms": 43,
+      "p99_latency_ms": 172
     }
   ]
 }

@@ -35,24 +35,24 @@ class Settings(BaseSettings):
     agent_timeout_marketing_copy: float = 10.0
     agent_timeout_inventory: float = 5.0
 
-    # Request-level timeout & retry (新增: 阶段 4)
+    # Request-level timeout & retry
     request_timeout_seconds: float = 8.0
     agent_max_retries: int = 2
     agent_retry_backoff_factor: float = 0.5
     agent_retry_backoff_max: float = 4.0
 
-    # Circuit breaker (新增: 阶段 4)
+    # Circuit breaker
     circuit_breaker_enabled: bool = True
     circuit_breaker_failure_threshold: int = 5  # 失败次数阈值
     circuit_breaker_window_seconds: int = 300  # 时间窗口
 
-    # Cache configuration (新增: 阶段 2)
+    # Cache configuration
     cache_user_profile_ttl_seconds: int = 3600  # Redis TTL: 1h
     cache_user_profile_local_ttl_seconds: int = 60  # 本地 L1 缓存: 1min
     cache_product_recall_ttl_seconds: int = 300  # 产品推荐缓存: 5min
     cache_local_maxsize: int = 128  # lru_cache 大小
 
-    # Metrics configuration (新增: 阶段 1)
+    # Metrics configuration
     metrics_business_event_max_size: int = 1000  # 循环缓冲区大小
     metrics_business_event_sampling_rate: int = 100  # 采样率: 每 100 个请求采 1 条
 

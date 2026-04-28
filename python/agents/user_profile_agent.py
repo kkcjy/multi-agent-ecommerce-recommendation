@@ -3,7 +3,7 @@
 - 实时特征提取：浏览/点击/购买/收藏行为 -> Redis Feature Store
 - 用户分群：RFM模型 + 实时标签
 - 画像合并：离线标签(T+1) + 在线标签(实时)
-- 缓存优化 (阶段 2A): Redis (L2, TTL=1h) + 本地内存 (L1, TTL=1min)
+- 缓存优化: Redis (L2, TTL=1h) + 本地内存 (L1, TTL=1min)
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ class UserProfileAgent(BaseAgent):
             )
         self.feature_store: Any = None  # injected in Phase 2
         
-        # 缓存配置 (阶段 2A)
+        # 缓存配置
         self.redis_client: redis.Redis | None = None
         self.redis_ttl = settings.cache_user_profile_ttl_seconds  # 3600s (1h)
         self._local_cache_maxsize = settings.cache_local_maxsize  # 128

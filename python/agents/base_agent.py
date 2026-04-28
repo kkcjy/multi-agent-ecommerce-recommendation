@@ -16,7 +16,7 @@ logger = structlog.get_logger()
 class BaseAgent(ABC):
     """所有Agent基类: 重试、超时、降级处理机制。
     
-    特性 (阶段 4):
+    特性:
     - 使用 settings 中的动态超时/重试配置
     - 指数退避重试策略: backoff_factor=0.5, max=4s
     - 电路断路器计划 (简化版: 跟踪调用计数)
@@ -26,7 +26,7 @@ class BaseAgent(ABC):
         settings = get_settings()
         self.name = name
         self.timeout = timeout
-        # 从 settings 获取重试配置 (阶段 4)
+        # 从 settings 获取重试配置
         self.max_retries = settings.agent_max_retries
         self.retry_backoff_factor = settings.agent_retry_backoff_factor
         self.retry_backoff_max = settings.agent_retry_backoff_max
@@ -48,7 +48,7 @@ class BaseAgent(ABC):
         start = time.perf_counter()
         self._call_count += 1
 
-        # 检查电路断路器状态 (阶段 4)
+        # 检查电路断路器状态
         if self._is_circuit_breaker_open():
             logger.warning("agent.circuit_breaker_open", agent=self.name)
             latency_ms = (time.perf_counter() - start) * 1000

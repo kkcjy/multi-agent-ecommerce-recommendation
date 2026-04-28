@@ -3,7 +3,7 @@
 - 召回层：协同过滤 + 向量检索(Milvus) + 热度/新品策略
 - 排序层：LLM重排 + 特征交叉(用户画像 x 商品属性)
 - 多样性控制：类目打散、卖家去重、新品加权
-- 缓存优化 (阶段 2B): 产品目录 + 分类推荐缓存
+- 缓存优化: 产品目录 + 分类推荐缓存
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ class ProductRecAgent(BaseAgent):
             )
         self.vector_store: Any = None  # injected in Phase 2
         
-        # 产品目录缓存 (阶段 2B)
+        # 产品目录缓存
         self._product_catalog = self._get_product_catalog()
         self._product_by_id = {p.product_id: p for p in self._product_catalog}
 
@@ -123,7 +123,7 @@ class ProductRecAgent(BaseAgent):
     async def _recall(self, profile: UserProfile | None, limit: int) -> list[Product]:
         """多策略召回: 协同过滤 + 向量检索 + 热度.
         
-        优化 (阶段 2B): 优先从缓存类目获取，减少全表扫描。
+        优化: 优先从缓存类目获取，减少全表扫描。
         """
         if self.vector_store:
             pass  # Phase 2: real vector search

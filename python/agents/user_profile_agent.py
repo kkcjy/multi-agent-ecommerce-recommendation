@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import redis
-from functools import lru_cache
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from cachetools import TTLCache
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -60,10 +62,18 @@ class UserProfileAgent(BaseAgent):
             )
         self.feature_store: Any = None  # injected in Phase 2
         
+        # L1: 本地内存缓存，TTL=60s
+        self._local_cache = TTLCache(
+            maxsize=settings.cache_local_maxsize,  # 128
+            ttl=settings.cache_user_profile_local_ttl_seconds,  # 60s
+        )
+        
         # 缓存配置
         self.redis_client: redis.Redis | None = None
         self.redis_ttl = settings.cache_user_profile_ttl_seconds  # 3600s (1h)
-        self._local_cache_maxsize = settings.cache_local_maxsize  # 128
+        # 使用线程池处理同步 Redis 调用，避免阻塞事件循环
+        self._redis_executor = ThreadPoolExecutor(max_workers=2)
+        
         try:
             self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
             self.redis_client.ping()
@@ -87,23 +97,32 @@ class UserProfileAgent(BaseAgent):
 
     async def _get_cached_profile(self, user_id: str, context: dict) -> UserProfile:
         """
-        两层缓存: 本地 (L1, TTL=60s) -> Redis (L2, TTL=3600s) -> LLM (新生成)
+        三层缓存降级: L1 本地 TTLCache (60s) -> L2 Redis (3600s) -> LLM (新生成)
+        - L1 使用 cachetools.TTLCache，支持真实的 TTL 和自动过期
+        - L2 Redis 操作通过线程池异步处理，不阻塞事件循环
         """
-        # L1: 本地内存缓存 (使用 lru_cache)
-        cached = self._get_local_cache(user_id)
-        if cached is not None:
+        # L1: 本地内存缓存 (TTLCache)
+        try:
+            cached = self._local_cache[user_id]
             cache_hits_total.labels(cache_name="user_profile_local").inc()
             return cached
+        except KeyError:
+            pass    # L1 缓存未命中
         
         cache_misses_total.labels(cache_name="user_profile_local").inc()
         
-        # L2: Redis 缓存
+        # L2: Redis 缓存 (通过线程池异步处理)
         if self.redis_client:
-            redis_cached = self._get_redis_cache(user_id)
+            loop = asyncio.get_event_loop()
+            redis_cached = await loop.run_in_executor(
+                self._redis_executor,
+                self._get_redis_cache,
+                user_id
+            )
             if redis_cached is not None:
                 cache_hits_total.labels(cache_name="user_profile_redis").inc()
                 # 写回 L1 本地缓存
-                self._set_local_cache(user_id, redis_cached)
+                self._local_cache[user_id] = redis_cached
                 return redis_cached
             
             cache_misses_total.labels(cache_name="user_profile_redis").inc()
@@ -122,23 +141,26 @@ class UserProfileAgent(BaseAgent):
             profile_data = self._parse_profile(user_id, response.content)
 
         # 写入缓存 (L1 + L2)
-        self._set_local_cache(user_id, profile_data)
+        self._local_cache[user_id] = profile_data
         if self.redis_client:
-            self._set_redis_cache(user_id, profile_data)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                self._redis_executor,
+                self._set_redis_cache,
+                user_id,
+                profile_data
+            )
 
         return profile_data
 
-    @lru_cache(maxsize=128)
     def _get_local_cache(self, user_id: str) -> UserProfile | None:
-        """L1 本地缓存 (lru_cache 自动处理 TTL 问题，此处作为演示)."""
-        # 注意: lru_cache 不提供 TTL，实际场景需要自己跟踪时间
-        # 这里简化为仅演示接口，真正的 TTL 由 Redis 承载
-        return None
+        try:
+            return self._local_cache[user_id]
+        except KeyError:
+            return None
 
     def _set_local_cache(self, user_id: str, profile: UserProfile):
-        """写入 L1 本地缓存."""
-        # 实际上 lru_cache 无法手动设置，此处演示接口
-        pass
+        self._local_cache[user_id] = profile
 
     def _get_redis_cache(self, user_id: str) -> UserProfile | None:
         """从 Redis 获取用户画像."""

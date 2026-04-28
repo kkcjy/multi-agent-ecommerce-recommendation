@@ -36,15 +36,15 @@ class Settings(BaseSettings):
     agent_timeout_inventory: float = 5.0
 
     # Request-level timeout & retry
-    request_timeout_seconds: float = 8.0
+    request_timeout_seconds: float = 12.0
     agent_max_retries: int = 2
     agent_retry_backoff_factor: float = 0.5
     agent_retry_backoff_max: float = 4.0
 
     # Circuit breaker
     circuit_breaker_enabled: bool = True
-    circuit_breaker_failure_threshold: int = 5  # 失败次数阈值
-    circuit_breaker_window_seconds: int = 300  # 时间窗口
+    circuit_breaker_failure_threshold: int = 3  # 失败次数阈值
+    circuit_breaker_window_seconds: int = 60    # 时间窗口
 
     # Cache configuration
     cache_user_profile_ttl_seconds: int = 3600  # Redis TTL: 1h

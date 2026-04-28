@@ -10,9 +10,39 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 from prometheus_client import Counter, Histogram, CollectorRegistry, generate_latest
+
+
+# ============================================================================
+# 错误类型枚举
+# ============================================================================
+
+class ErrorType(str, Enum):
+    """Agent 错误类型枚举，防止高基数 label 导致 Prometheus OOM。"""
+    TIMEOUT = "timeout"           # 请求超时
+    LLM_ERROR = "llm_error"       # LLM 调用失败
+    REDIS_ERROR = "redis_error"   # Redis 连接错误
+    VALIDATION_ERROR = "validation_error"  # 输入校验失败
+    UNKNOWN = "unknown"           # 其他未知错误
+
+    @staticmethod
+    def categorize(error_msg: str) -> "ErrorType":
+        """根据错误消息分类到具体的错误类型。"""
+        error_lower = error_msg.lower()
+        
+        if "timeout" in error_lower or "timed out" in error_lower:
+            return ErrorType.TIMEOUT
+        elif "redis" in error_lower or "connection refused" in error_lower:
+            return ErrorType.REDIS_ERROR
+        elif "openai" in error_lower or "llm" in error_lower or "api" in error_lower:
+            return ErrorType.LLM_ERROR
+        elif "validation" in error_lower or "invalid" in error_lower:
+            return ErrorType.VALIDATION_ERROR
+        else:
+            return ErrorType.UNKNOWN
 
 # ============================================================================
 # Prometheus 指标定义
@@ -115,7 +145,8 @@ class MetricsCollector:
         # 更新 Prometheus
         agent_duration_seconds.labels(agent_name=agent_name).observe(latency_ms / 1000.0)
         if error:
-            agent_errors_total.labels(agent_name=agent_name, error_type=error).inc()
+            error_type = ErrorType.categorize(error)
+            agent_errors_total.labels(agent_name=agent_name, error_type=error_type.value).inc()
 
     def record_business_event(self, event_type: str, **kwargs: Any):
         """

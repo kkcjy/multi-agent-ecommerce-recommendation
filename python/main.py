@@ -74,11 +74,9 @@ app.add_middleware(
 @app.middleware("http")
 async def request_timeout_middleware(request: Request, call_next):
     """请求级超时处理。
-    
-    对于耗时的推荐请求，使用 settings 中配置的超时时间。
     """
-    # 只对 /api/v1/recommend 和 /api/v1/recommend/graph 应用超时
-    if request.url.path in ["/api/v1/recommend", "/api/v1/recommend/graph"]:
+    # 使用前缀匹配而非精确匹配，支持版本扩展
+    if request.url.path.startswith("/api/v1/recommend"):
         try:
             response = await asyncio.wait_for(
                 call_next(request),
@@ -86,10 +84,23 @@ async def request_timeout_middleware(request: Request, call_next):
             )
             return response
         except asyncio.TimeoutError:
-            logger.error("request.timeout", path=request.url.path)
+            logger.error(
+                "request.timeout",
+                path=request.url.path,
+                timeout_seconds=settings.request_timeout_seconds,
+            )
             return JSONResponse(
                 status_code=503,
-                content={"error": "Request timeout", "message": f"请求超过 {settings.request_timeout_seconds}s 限制"},
+                content={
+                    "error": "Request timeout",
+                    "message": f"请求超过 {settings.request_timeout_seconds}s 限制，请稍后重试",
+                },
+            )
+        except Exception as exc:
+            logger.error("request.middleware_error", path=request.url.path, error=str(exc))
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Internal server error"},
             )
     else:
         return await call_next(request)

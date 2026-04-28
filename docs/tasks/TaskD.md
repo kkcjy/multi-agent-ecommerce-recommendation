@@ -94,7 +94,7 @@ def _get_products_by_category(self, category: str) -> tuple:
 
 ---
 
-## 3. `user_profile_agent.py` — 两层缓存架构（优化后）
+## 3. `user_profile_agent.py` — 两层缓存架构
 
 ### 修改内容
 
@@ -104,7 +104,7 @@ def _get_products_by_category(self, category: str) -> tuple:
 请求 → L1 本地内存（hit?）→ L2 Redis（hit?）→ LLM 生成 → 回写 L1+L2
 ```
 
-原版每次请求都调用 LLM，优化后 将热点用户的画像请求拦截在内存层，显著降低 LLM 调用成本。
+原版每次请求都调用 LLM，优化后将热点用户的画像请求拦截在内存层，显著降低 LLM 调用成本。
 
 ---
 
@@ -185,7 +185,7 @@ circuit_breaker_window_seconds: int = 300
 
 `threshold=5` 在 300s 窗口内触发，对高 QPS 服务可能太宽松，建议同时支持错误率阈值（如 50%）。
 
-**缓存配置（对应优化后/2B）：**
+**缓存配置：**
 
 ```python
 cache_user_profile_ttl_seconds: int = 3600   # L2 Redis TTL
@@ -228,7 +228,7 @@ def must_be_positive(cls, v: float) -> float:
 
 ---
 
-## 5. `main.py` — 超时中间件与 Prometheus 端点（优化后）
+## 5. `main.py` — 超时中间件与 Prometheus 端点
 
 ### 修改内容
 
@@ -280,7 +280,7 @@ async def get_prometheus_metrics():
     return Response(content=metrics_data, media_type="text/plain; version=0.0.4")
 ```
 
-原版仅有 `/api/v1/metrics`（JSON，供人读），优化后 新增 `/metrics`（text/plain，供 Prometheus scrape）。
+原版仅有 `/api/v1/metrics`（JSON，供人读），优化后新增 `/metrics`（text/plain，供 Prometheus scrape）。
 
 **安全提示：** `/metrics` 在生产环境应加鉴权或限制为内网访问，否则任何人都能获取系统内部指标。
 
@@ -296,7 +296,7 @@ async def get_prometheus_metrics():
 
 ---
 
-## 6. `metrics.py` — Prometheus 集成与内存安全（优化后）
+## 6. `metrics.py` — Prometheus 集成与内存安全
 
 ### 修改内容
 
@@ -367,14 +367,14 @@ def record_agent_call(self, ...):
 
 ---
 
-## 7. `marketing_copy_agent.py` — 文案生成优化（优化后）
+## 7. `marketing_copy_agent.py` — 文案生成优化
 
 ### 修改内容
 
 #### 正则表达式预编译
 
 ```python
-# 预编译正则表达式 (优化后)
+# 预编译正则表达式
 _FORBIDDEN_WORDS_PATTERNS = {
     word: re.compile(re.escape(word)) for word in FORBIDDEN_WORDS
 }
@@ -382,7 +382,7 @@ _FORBIDDEN_WORDS_PATTERNS = {
 def _compliance_check(self, copy_item: dict[str, str]) -> dict[str, str]:
     """过滤违反广告法的禁用词汇。
     
-    优化 (优化后): 使用预编译的正则表达式，避免每次都重新编译。
+    优化: 使用预编译的正则表达式，避免每次都重新编译。
     """
     text = copy_item.get("copy", "")
     for word, pattern in _FORBIDDEN_WORDS_PATTERNS.items():
@@ -527,97 +527,3 @@ locust -f load_test_locust.py --host=http://localhost:8866 \
 **Prometheus 指标：** `http://localhost:8866/metrics`
 - Locust 压测结果与系统 metrics 端点同步采集
 - 便于后续关联分析
-
----
-
-## 10. 文件修改统计
-
-### kkcjy 提交的 Python 文件改动
-
-| 文件 | 修改类型 | 关键更新 | 优先级 |
-|---|---|---|---|
-| `base_agent.py` | ✏️ 修改 | 断路器 + 配置外部化 | P0 |
-| `product_rec_agent.py` | ✏️ 修改 | 产品目录缓存 + LRU 优化 | P1 |
-| `user_profile_agent.py` | ✏️ 修改 | L1+L2 缓存架构 | P0 |
-| `marketing_copy_agent.py` | ✏️ 修改 | 正则预编译 (优化后) | P2 |
-| `config/settings.py` | ✏️ 修改 | 配置中枢扩展 | P1 |
-| `main.py` | ✏️ 修改 | 超时中间件 + Prometheus 端点 | P0 |
-| `metrics.py` | ✏️ 修改 | Prometheus 集成 | P1 |
-| `generate_perf_report.py` | ✨ 新增 | 性能报告可视化 | P2 |
-| `load_test_locust.py` | ✨ 新增 | 性能基线压测 | P2 |
-
----
-
-## 全局演进路径总结
-
-```
-Settings（配置中枢）
-    ├─ 提供参数给各 Agent
-    ↓
-BaseAgent（重试 + 断路器）       ← 优化后：稳定性
-    ├─ 继承、错误隔离
-    ↓
-┌─ UserProfileAgent（L1+L2 缓存） ← 优化后：性能
-├─ ProductRecAgent（分类缓存）   ← 优化后：性能
-└─ MarketingCopyAgent（文案优化） ← 优化后：文案
-    ↓ 被编排
-SupervisorOrchestrator
-    ↓
-main.py（超时中间件 + Prometheus）← 优化后：可观测性
-    ├─ 系统级超时兜底
-    └─ 指标导出（/metrics）
-        ↓
-metrics.py（指标收集）             ← 优化后：基础设施
-    └─ Prometheus 指标定义
-        ↓
-load_test_locust.py（性能基线）   ← 度量循环：验证优化效果
-    ↓
-generate_perf_report.py（可视化） ← 输出分析报告
-```
-
-### 当前最薄弱的五个环节（优先级排序）
-
-| 优先级 | 问题 | 文件 | 风险 | 修复建议 |
-|---|---|---|---|---|
-| **P0** | `error_type` label 高基数 | `metrics.py` | Prometheus OOM，连锁故障 | label 值枚举化（timeout/llm_error/unknown） |
-| **P0** | 同步 Redis 阻塞事件循环 | `user_profile_agent.py` | 高并发下请求堆积 | 改用 aioredis 或异步库 |
-| **P0** | L1 缓存空实现 | `user_profile_agent.py` | 缓存层完全失效 | 改用 cachetools.TTLCache |
-| **P1** | 断路器无半开状态 | `base_agent.py` | 下游恢复后系统无法自愈 | 添加 HALF_OPEN 状态 + 探测机制 |
-| **P2** | 中间件超时取消不干净 | `main.py` | 503 后内部任务仍在运行 | 在编排层控制超时，而非中间件 |
----
-
-## 📝 附录：技术债清单
-
-### 立即行动（Within 1 sprint）
-
-- [ ] **metrics.py**: 将 `error_type` 改为枚举，防止 label 爆炸
-- [ ] **user_profile_agent.py**: 改用 aioredis，避免同步 Redis 阻塞
-- [ ] **user_profile_agent.py**: 修复 L1 缓存，改用 cachetools.TTLCache
-
-### 近期规划（Within 2 sprints）
-
-- [ ] **base_agent.py**: 添加断路器半开状态 + 探测机制
-- [ ] **config/settings.py**: 添加 pydantic 校验，防止配置错误
-- [ ] **load_test_locust.py**: 运行性能基线，建立对标指标
-- [ ] **main.py**: 在编排层实现超时控制，而非中间件
-
-### 长期优化（Backlog）
-
-- [ ] 增加分布式链路追踪（Jaeger/Tempo）
-- [ ] 实现 Agent 级别 SLA 配置
-- [ ] 添加灰度发布机制（金丝雀/蓝绿）
-
----
-
-## 🎯 快速导航
-
-| 场景 | 相关文件 | 关键概念 |
-|---|---|---|
-| **要稳定？** | [BaseAgent](#1-base_agentpy) + [Settings](#4-configpy---配置中枢扩展) | 断路器、重试、配置外部化 |
-| **要快速？** | [UserProfileAgent](#3-user_profile_agentpy) + [ProductRecAgent](#2-product_rec_agentpy) | 多层缓存、LRU、预热 |
-| **要对标？** | [load_test_locust.py](#9-load_test_locustpy---性能基线压测新增) + [generate_perf_report.py](#8-generate_perf_reportpy---性能报告生成新增) | 基线、可视化、趋势分析 |
-| **要监控？** | [metrics.py](#6-metricspy---prometheus-集成与内存安全阶段-1) + [main.py](#5-mainpy---超时中间件与-prometheus-端点阶段-4) | Prometheus、Grafana、告警 |
-
----
-
-**报告完成** | 下一步：[关闭高优先级问题](https://github.com/xxx/issues) | [查看完整代码diff](https://github.com/xxx/commit/4b1cff2)

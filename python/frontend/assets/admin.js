@@ -1,54 +1,86 @@
 const experimentsContainer = document.getElementById("experimentsContainer");
 const metricsContainer = document.getElementById("metricsContainer");
+const experimentsState = document.getElementById("experimentsState");
+const metricsState = document.getElementById("metricsState");
+
 const reloadExperimentsBtn = document.getElementById("reloadExperiments");
 const reloadMetricsBtn = document.getElementById("reloadMetrics");
+
 const outcomeForm = document.getElementById("outcomeForm");
 const outcomeState = document.getElementById("outcomeState");
+const outcomeSubmitBtn = document.getElementById("outcomeSubmitBtn");
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+const experimentIdInput = document.getElementById("experimentId");
+const groupNameInput = document.getElementById("groupName");
+const isSuccessInput = document.getElementById("isSuccess");
+
+let loadingExperiments = false;
+let loadingMetrics = false;
+
+function formatRate(successes, failures) {
+  const total = successes + failures;
+  if (!total) {
+    return "0.0%";
+  }
+  return ((successes / total) * 100).toFixed(1) + "%";
 }
 
-function setOutcomeState(message, statusClass) {
-  outcomeState.textContent = message;
-  outcomeState.className = "status";
-  if (statusClass) {
-    outcomeState.classList.add(statusClass);
+function safeString(value) {
+  if (value === null || value === undefined) {
+    return "-";
   }
+  return String(value);
 }
 
 function renderExperiments(experiments) {
   const keys = Object.keys(experiments || {});
   if (keys.length === 0) {
-    experimentsContainer.innerHTML = "<div class=\"status\">No experiment data.</div>";
+    experimentsContainer.innerHTML = "<div class=\"empty-state\">No experiment data found. Check backend initialization.</div>";
     return;
   }
 
   experimentsContainer.innerHTML = keys
     .map((expId) => {
-      const exp = experiments[expId];
-      const groupsHtml = (exp.groups || [])
-        .map((g) => {
+      const exp = experiments[expId] || {};
+      const groups = Array.isArray(exp.groups) ? exp.groups : [];
+
+      const groupRows = groups
+        .map((group) => {
+          const successes = Number(group.successes || 0);
+          const failures = Number(group.failures || 0);
+          const rate = formatRate(successes, failures);
           return [
-            "<div class=\"kv\"><strong>Group</strong><span>" + escapeHtml(g.name) + "</span></div>",
-            "<div class=\"kv\"><strong>Weight</strong><span>" + escapeHtml(g.weight) + "</span></div>",
-            "<div class=\"kv\"><strong>Success/Fail</strong><span>" + escapeHtml(g.successes) + " / " + escapeHtml(g.failures) + "</span></div>",
-            "<div class=\"kv\"><strong>Config</strong><span>" + escapeHtml(JSON.stringify(g.config || {})) + "</span></div>",
-            "<hr />",
+            "<tr>",
+            "<td>" + AppUI.escapeHtml(safeString(group.name)) + "</td>",
+            "<td>" + AppUI.escapeHtml(safeString(group.weight)) + "</td>",
+            "<td>" + AppUI.escapeHtml(String(successes)) + " / " + AppUI.escapeHtml(String(failures)) + "</td>",
+            "<td>" + AppUI.escapeHtml(rate) + "</td>",
+            "<td class=\"mono\">" + AppUI.escapeHtml(JSON.stringify(group.config || {})) + "</td>",
+            "</tr>",
           ].join("");
         })
         .join("");
 
+      const stats = exp.stats && typeof exp.stats === "object" ? exp.stats : {};
+      const statGroups = Object.keys(stats);
+      const statsHtml = statGroups.length === 0
+        ? "<div class=\"subtle-text\">No business metric records yet.</div>"
+        : "<div class=\"subtle-text\">Stats groups: " + AppUI.escapeHtml(statGroups.join(", ")) + "</div>";
+
       return [
-        "<article class=\"info-card\">",
-        "  <div class=\"info-title\">" + escapeHtml(expId) + " - " + escapeHtml(exp.name || "") + "</div>",
-        "  <div class=\"kv\"><strong>Enabled</strong><span>" + escapeHtml(exp.enabled) + "</span></div>",
-        groupsHtml,
+        "<article class=\"info-card experiment-card\">",
+        "<div class=\"info-title-row\">",
+        "  <div class=\"info-title\">" + AppUI.escapeHtml(expId) + "</div>",
+        "  <span class=\"tag " + (exp.enabled ? "tag-ok" : "tag-muted") + "\">" + (exp.enabled ? "enabled" : "disabled") + "</span>",
+        "</div>",
+        "<div class=\"subtle-text\">" + AppUI.escapeHtml(exp.name || "Unnamed experiment") + "</div>",
+        "<div class=\"table-wrap\">",
+        "<table class=\"group-table\">",
+        "<thead><tr><th>Group</th><th>Weight</th><th>Success/Fail</th><th>Success Rate</th><th>Config</th></tr></thead>",
+        "<tbody>" + groupRows + "</tbody>",
+        "</table>",
+        "</div>",
+        statsHtml,
         "</article>",
       ].join("");
     })
@@ -56,81 +88,143 @@ function renderExperiments(experiments) {
 }
 
 function renderMetrics(metrics) {
-  const agents = metrics.agents || {};
+  const safeMetrics = metrics || {};
+  const agents = safeMetrics.agents || {};
   const names = Object.keys(agents);
+
   if (names.length === 0) {
-    metricsContainer.innerHTML = "<div class=\"status\">No metric data yet. Run recommendation first.</div>";
+    metricsContainer.innerHTML = [
+      "<div class=\"empty-state\">",
+      "No metric data yet. Run recommendation requests from the user page, then refresh.",
+      "</div>",
+    ].join("");
     return;
   }
 
-  metricsContainer.innerHTML = names
+  const agentCards = names
     .map((name) => {
-      const m = agents[name];
+      const metric = agents[name] || {};
+      const errors = Array.isArray(metric.recent_errors) ? metric.recent_errors : [];
+      const errorHtml = errors.length === 0
+        ? "<div class=\"subtle-text\">No recent errors.</div>"
+        : "<div class=\"subtle-text\">Recent errors: " + AppUI.escapeHtml(errors.join(" | ")) + "</div>";
+
       return [
         "<article class=\"info-card\">",
-        "  <div class=\"info-title\">" + escapeHtml(name) + "</div>",
-        "  <div class=\"kv\"><strong>Call Count</strong><span>" + escapeHtml(m.call_count) + "</span></div>",
-        "  <div class=\"kv\"><strong>Success Rate</strong><span>" + escapeHtml(m.success_rate) + "</span></div>",
-        "  <div class=\"kv\"><strong>Avg Latency (ms)</strong><span>" + escapeHtml(m.avg_latency_ms) + "</span></div>",
+        "<div class=\"info-title\">" + AppUI.escapeHtml(name) + "</div>",
+        "<div class=\"kv\"><strong>Call Count</strong><span>" + AppUI.escapeHtml(safeString(metric.call_count)) + "</span></div>",
+        "<div class=\"kv\"><strong>Success Rate</strong><span>" + AppUI.escapeHtml(safeString(metric.success_rate)) + "</span></div>",
+        "<div class=\"kv\"><strong>Avg Latency (ms)</strong><span>" + AppUI.escapeHtml(safeString(metric.avg_latency_ms)) + "</span></div>",
+        errorHtml,
         "</article>",
       ].join("");
     })
     .join("");
+
+  const business = safeMetrics.business || {};
+  const businessNames = Object.keys(business);
+  const businessCard = businessNames.length === 0
+    ? "<article class=\"info-card\"><div class=\"info-title\">Business Metrics</div><div class=\"subtle-text\">No business events collected yet.</div></article>"
+    : [
+        "<article class=\"info-card\">",
+        "<div class=\"info-title\">Business Metrics</div>",
+        businessNames
+          .map((metricName) => {
+            const count = business[metricName] && business[metricName].count;
+            return "<div class=\"kv\"><strong>" + AppUI.escapeHtml(metricName) + "</strong><span>" + AppUI.escapeHtml(safeString(count)) + "</span></div>";
+          })
+          .join(""),
+        "</article>",
+      ].join("");
+
+  metricsContainer.innerHTML = agentCards + businessCard;
 }
 
 async function loadExperiments() {
-  experimentsContainer.innerHTML = "<div class=\"status loading\">Loading experiments...</div>";
+  if (loadingExperiments) {
+    return;
+  }
+  loadingExperiments = true;
+  AppUI.setButtonBusy(reloadExperimentsBtn, true, "Refreshing...", "Refresh");
+  AppUI.setStatus(experimentsState, "Loading experiments...", "loading");
+
   try {
-    const response = await fetch("/api/v1/experiments");
-    if (!response.ok) {
-      throw new Error("Failed with status " + response.status);
-    }
-    const data = await response.json();
+    const data = await AppUI.fetchJson("/api/v1/experiments");
     renderExperiments(data);
+    AppUI.setStatus(experimentsState, "Experiments loaded.", "ok");
   } catch (error) {
-    experimentsContainer.innerHTML = "<div class=\"status error\">" + escapeHtml(error.message) + "</div>";
+    experimentsContainer.innerHTML = "<div class=\"empty-state\">Failed to load experiments: " + AppUI.escapeHtml(error.message || "Unknown error") + "</div>";
+    AppUI.setStatus(experimentsState, "Experiment refresh failed.", "error");
+    throw error;
+  } finally {
+    loadingExperiments = false;
+    AppUI.setButtonBusy(reloadExperimentsBtn, false, "Refreshing...", "Refresh");
   }
 }
 
 async function loadMetrics() {
-  metricsContainer.innerHTML = "<div class=\"status loading\">Loading metrics...</div>";
+  if (loadingMetrics) {
+    return;
+  }
+  loadingMetrics = true;
+  AppUI.setButtonBusy(reloadMetricsBtn, true, "Refreshing...", "Refresh");
+  AppUI.setStatus(metricsState, "Loading metrics...", "loading");
+
   try {
-    const response = await fetch("/api/v1/metrics");
-    if (!response.ok) {
-      throw new Error("Failed with status " + response.status);
-    }
-    const data = await response.json();
+    const data = await AppUI.fetchJson("/api/v1/metrics");
     renderMetrics(data);
+    AppUI.setStatus(metricsState, "Metrics loaded.", "ok");
   } catch (error) {
-    metricsContainer.innerHTML = "<div class=\"status error\">" + escapeHtml(error.message) + "</div>";
+    metricsContainer.innerHTML = "<div class=\"empty-state\">Failed to load metrics: " + AppUI.escapeHtml(error.message || "Unknown error") + "</div>";
+    AppUI.setStatus(metricsState, "Metrics refresh failed.", "error");
+    throw error;
+  } finally {
+    loadingMetrics = false;
+    AppUI.setButtonBusy(reloadMetricsBtn, false, "Refreshing...", "Refresh");
+  }
+}
+
+async function refreshDashboard() {
+  const results = await Promise.allSettled([loadExperiments(), loadMetrics()]);
+  const failedCount = results.filter((result) => result.status === "rejected").length;
+  if (failedCount > 0) {
+    AppUI.setStatus(outcomeState, "Dashboard refreshed with partial failures.", "error");
   }
 }
 
 async function submitOutcome(event) {
   event.preventDefault();
-  const experimentId = document.getElementById("experimentId").value.trim();
-  const groupName = document.getElementById("groupName").value.trim();
-  const isSuccess = document.getElementById("isSuccess").value === "true";
+
+  const experimentId = experimentIdInput.value.trim();
+  const groupName = groupNameInput.value.trim();
+  const isSuccess = isSuccessInput.value === "true";
 
   if (!experimentId || !groupName) {
-    setOutcomeState("experiment_id and group are required.", "error");
+    AppUI.setStatus(outcomeState, "Experiment ID and Group Name are required.", "error");
     return;
   }
 
-  setOutcomeState("Submitting outcome...", "loading");
+  AppUI.setButtonBusy(outcomeSubmitBtn, true, "Submitting...", "Submit Outcome");
+  AppUI.setStatus(outcomeState, "Submitting outcome...", "loading");
 
   try {
     const url = "/api/v1/experiments/" + encodeURIComponent(experimentId) + "/outcome?group=" + encodeURIComponent(groupName) + "&success=" + isSuccess;
-    const response = await fetch(url, { method: "POST" });
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error("Failed: " + response.status + " " + text);
-    }
+    await AppUI.fetchJson(url, { method: "POST" });
 
-    setOutcomeState("Outcome recorded.", "ok");
-    await Promise.all([loadExperiments(), loadMetrics()]);
+    AppUI.setStatus(outcomeState, "Outcome recorded. Refreshing experiments and metrics...", "ok");
+
+    const refreshResults = await Promise.allSettled([loadExperiments(), loadMetrics()]);
+    const refreshFailed = refreshResults.some((result) => result.status === "rejected");
+
+    if (refreshFailed) {
+      AppUI.setStatus(outcomeState, "Outcome recorded, but one panel failed to refresh.", "error");
+    } else {
+      AppUI.setStatus(outcomeState, "Outcome recorded and dashboard refreshed.", "ok");
+    }
   } catch (error) {
-    setOutcomeState(error.message, "error");
+    AppUI.setStatus(outcomeState, "Submit failed: " + (error.message || "Unknown error"), "error");
+  } finally {
+    AppUI.setButtonBusy(outcomeSubmitBtn, false, "Submitting...", "Submit Outcome");
   }
 }
 
@@ -138,4 +232,4 @@ reloadExperimentsBtn.addEventListener("click", loadExperiments);
 reloadMetricsBtn.addEventListener("click", loadMetrics);
 outcomeForm.addEventListener("submit", submitOutcome);
 
-Promise.all([loadExperiments(), loadMetrics()]);
+refreshDashboard();

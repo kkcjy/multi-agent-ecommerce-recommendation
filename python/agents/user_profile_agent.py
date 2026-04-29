@@ -3,11 +3,16 @@
 - 实时特征提取：浏览/点击/购买/收藏行为 -> Redis Feature Store
 - 用户分群：RFM模型 + 实时标签
 - 画像合并：离线标签(T+1) + 在线标签(实时)
+- 缓存优化: Redis (L2, TTL=1h) + 本地内存 (L1, TTL=1min)
 """
 
 from __future__ import annotations
 
 import json
+import redis
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from cachetools import TTLCache
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -20,6 +25,7 @@ from models.schemas import (
     UserProfileResult,
     UserSegment,
 )
+from services.metrics import cache_hits_total, cache_misses_total
 
 from .base_agent import BaseAgent
 
@@ -44,35 +50,145 @@ class UserProfileAgent(BaseAgent):
             name="user_profile",
             timeout=settings.agent_timeout_user_profile,
         )
-        self.llm = ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            model=settings.llm_model,
-            temperature=0.3,
-            max_tokens=1024,
-        )
+        self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.llm: ChatOpenAI | None = None
+        if self.llm_enabled:
+            self.llm = ChatOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                temperature=0.3,
+                max_tokens=1024,
+            )
         self.feature_store: Any = None  # injected in Phase 2
+        
+        # L1: 本地内存缓存，TTL=60s
+        self._local_cache = TTLCache(
+            maxsize=settings.cache_local_maxsize,  # 128
+            ttl=settings.cache_user_profile_local_ttl_seconds,  # 60s
+        )
+        
+        # 缓存配置
+        self.redis_client: redis.Redis | None = None
+        self.redis_ttl = settings.cache_user_profile_ttl_seconds  # 3600s (1h)
+        # 使用线程池处理同步 Redis 调用，避免阻塞事件循环
+        self._redis_executor = ThreadPoolExecutor(max_workers=2)
+        
+        try:
+            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+            self.redis_client.ping()
+        except Exception:
+            # Redis 不可用，仅用本地缓存
+            self.redis_client = None
 
     async def _execute(self, **kwargs: Any) -> UserProfileResult:
         user_id: str = kwargs["user_id"]
         context: dict = kwargs.get("context", {})
 
-        behavior_data = await self._collect_behavior(user_id, context)
-
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=f"用户ID: {user_id}\n行为数据: {json.dumps(behavior_data, ensure_ascii=False)}"),
-        ]
-        response = await self.llm.ainvoke(messages)
-
-        profile_data = self._parse_profile(user_id, response.content)
+        # 尝试从缓存获取用户画像 (L1 -> L2)
+        profile_data = await self._get_cached_profile(user_id, context)
 
         return UserProfileResult(
             success=True,
             profile=profile_data,
-            data={"raw_analysis": response.content},
+            data={"source": "cache_or_fallback_or_llm"},
             confidence=0.85,
         )
+
+    async def _get_cached_profile(self, user_id: str, context: dict) -> UserProfile:
+        """
+        三层缓存降级: L1 本地 TTLCache (60s) -> L2 Redis (3600s) -> LLM (新生成)
+        - L1 使用 cachetools.TTLCache，支持真实的 TTL 和自动过期
+        - L2 Redis 操作通过线程池异步处理，不阻塞事件循环
+        """
+        # L1: 本地内存缓存 (TTLCache)
+        try:
+            cached = self._local_cache[user_id]
+            cache_hits_total.labels(cache_name="user_profile_local").inc()
+            return cached
+        except KeyError:
+            pass    # L1 缓存未命中
+        
+        cache_misses_total.labels(cache_name="user_profile_local").inc()
+        
+        # L2: Redis 缓存 (通过线程池异步处理)
+        if self.redis_client:
+            loop = asyncio.get_event_loop()
+            redis_cached = await loop.run_in_executor(
+                self._redis_executor,
+                self._get_redis_cache,
+                user_id
+            )
+            if redis_cached is not None:
+                cache_hits_total.labels(cache_name="user_profile_redis").inc()
+                # 写回 L1 本地缓存
+                self._local_cache[user_id] = redis_cached
+                return redis_cached
+            
+            cache_misses_total.labels(cache_name="user_profile_redis").inc()
+        
+        # L1 + L2 都未命中，从 LLM 或本地 fallback 生成新画像
+        behavior_data = await self._collect_behavior(user_id, context)
+
+        if not self.llm:
+            profile_data = self._fallback_profile(user_id, behavior_data)
+        else:
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=f"用户ID: {user_id}\n行为数据: {json.dumps(behavior_data, ensure_ascii=False)}"),
+            ]
+            response = await self.llm.ainvoke(messages)
+            profile_data = self._parse_profile(user_id, response.content)
+
+        # 写入缓存 (L1 + L2)
+        self._local_cache[user_id] = profile_data
+        if self.redis_client:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                self._redis_executor,
+                self._set_redis_cache,
+                user_id,
+                profile_data
+            )
+
+        return profile_data
+
+    def _get_local_cache(self, user_id: str) -> UserProfile | None:
+        try:
+            return self._local_cache[user_id]
+        except KeyError:
+            return None
+
+    def _set_local_cache(self, user_id: str, profile: UserProfile):
+        self._local_cache[user_id] = profile
+
+    def _get_redis_cache(self, user_id: str) -> UserProfile | None:
+        """从 Redis 获取用户画像."""
+        if not self.redis_client:
+            return None
+        try:
+            key = f"user_profile:{user_id}"
+            data = self.redis_client.get(key)
+            if data:
+                parsed = json.loads(data)
+                return UserProfile(**parsed)
+        except Exception:
+            pass
+        return None
+
+    def _set_redis_cache(self, user_id: str, profile: UserProfile):
+        """将用户画像写入 Redis."""
+        if not self.redis_client:
+            return
+        try:
+            key = f"user_profile:{user_id}"
+            self.redis_client.setex(
+                key,
+                self.redis_ttl,
+                json.dumps(profile.model_dump(), ensure_ascii=False),
+            )
+        except Exception:
+            pass
 
     async def _collect_behavior(self, user_id: str, context: dict) -> dict:
         """Collect user behavior from feature store or context fallback."""
@@ -117,4 +233,45 @@ class UserProfileAgent(BaseAgent):
             price_range=price_range,
             rfm_score=data.get("rfm_score", {}),
             real_time_tags=data.get("real_time_tags", {}),
+        )
+
+    def _fallback_profile(self, user_id: str, behavior_data: dict[str, Any]) -> UserProfile:
+        views = [str(v) for v in behavior_data.get("recent_views", [])]
+        purchases = int(behavior_data.get("purchase_count_30d", 0) or 0)
+        avg_amount = float(behavior_data.get("avg_order_amount", 0.0) or 0.0)
+
+        preferred = []
+        for item in views:
+            normalized = item.strip()
+            if normalized and normalized not in preferred:
+                preferred.append(normalized)
+            if len(preferred) >= 3:
+                break
+
+        segments: list[UserSegment] = [UserSegment.ACTIVE]
+        if purchases <= 1:
+            segments.append(UserSegment.NEW_USER)
+        if avg_amount >= 800:
+            segments.append(UserSegment.HIGH_VALUE)
+        if avg_amount <= 300:
+            segments.append(UserSegment.PRICE_SENSITIVE)
+
+        unique_segments = []
+        seen = set()
+        for seg in segments:
+            if seg not in seen:
+                unique_segments.append(seg)
+                seen.add(seg)
+
+        return UserProfile(
+            user_id=user_id,
+            segments=unique_segments,
+            preferred_categories=preferred,
+            price_range=(0.0, max(2000.0, avg_amount * 8 if avg_amount > 0 else 3000.0)),
+            rfm_score={
+                "recency": 0.6,
+                "frequency": min(1.0, purchases / 10.0),
+                "monetary": min(1.0, avg_amount / 2000.0),
+            },
+            real_time_tags={"source": "fallback"},
         )

@@ -51,6 +51,11 @@ FORBIDDEN_WORDS = [
     "永久", "万能", "祖传", "纯天然",
 ]
 
+# 预编译正则表达式
+_FORBIDDEN_WORDS_PATTERNS = {
+    word: re.compile(re.escape(word)) for word in FORBIDDEN_WORDS
+}
+
 COPY_OUTPUT_INSTRUCTION = """
 请以JSON数组格式输出,每个元素格式:
 [{"product_id": "xxx", "copy": "文案内容"}]
@@ -64,13 +69,16 @@ class MarketingCopyAgent(BaseAgent):
             name="marketing_copy",
             timeout=settings.agent_timeout_marketing_copy,
         )
-        self.llm = ChatOpenAI(
-            api_key=settings.llm_api_key,
-            base_url=settings.llm_base_url,
-            model=settings.llm_model,
-            temperature=0.9,
-            max_tokens=2048,
-        )
+        self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.llm: ChatOpenAI | None = None
+        if self.llm_enabled:
+            self.llm = ChatOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                temperature=0.9,
+                max_tokens=2048,
+            )
 
     async def _execute(self, **kwargs: Any) -> MarketingCopyResult:
         user_profile: UserProfile | None = kwargs.get("user_profile")
@@ -78,6 +86,23 @@ class MarketingCopyAgent(BaseAgent):
 
         if not products:
             return MarketingCopyResult(success=True, copies=[], confidence=1.0)
+
+        if not self.llm:
+            fallback_copies = [
+                {
+                    "product_id": product.product_id,
+                    "title": product.name,
+                    "copy": self._fallback_copy(user_profile, product),
+                }
+                for product in products
+            ]
+            return MarketingCopyResult(
+                success=True,
+                copies=fallback_copies,
+                prompt_template_used="fallback_template",
+                data={"fallback": "llm_disabled"},
+                confidence=0.7,
+            )
 
         template_key = self._select_template(user_profile)
         system_prompt = PROMPT_TEMPLATES[template_key]
@@ -129,9 +154,30 @@ class MarketingCopyAgent(BaseAgent):
             return []
 
     def _compliance_check(self, copy_item: dict[str, str]) -> dict[str, str]:
-        """Filter forbidden advertising words per Chinese Ad Law."""
+        """过滤违反广告法的禁用词汇。
+        
+        优化: 使用预编译的正则表达式，避免每次都重新编译。
+        """
         text = copy_item.get("copy", "")
-        for word in FORBIDDEN_WORDS:
-            text = re.sub(re.escape(word), "***", text)
+        for word, pattern in _FORBIDDEN_WORDS_PATTERNS.items():
+            text = pattern.sub("***", text)
         copy_item["copy"] = text
         return copy_item
+
+    def _fallback_copy(self, profile: UserProfile | None, product: Product) -> str:
+        segment = UserSegment.ACTIVE
+        if profile and profile.segments:
+            segment = profile.segments[0]
+
+        if segment == UserSegment.NEW_USER:
+            text = f"新用户专享推荐：{product.name}，现在下单更划算，快来看看。"
+        elif segment == UserSegment.HIGH_VALUE:
+            text = f"为您精选高品质单品 {product.name}，兼顾性能与体验，值得入手。"
+        elif segment == UserSegment.PRICE_SENSITIVE:
+            text = f"高性价比推荐：{product.name}，当前价格友好，适合立即下单。"
+        elif segment == UserSegment.CHURN_RISK:
+            text = f"好久不见，为你保留了 {product.name}，现在回归可享专属优惠。"
+        else:
+            text = f"根据你的近期偏好，推荐 {product.name}，适配当前浏览场景。"
+
+        return self._compliance_check({"copy": text})["copy"]

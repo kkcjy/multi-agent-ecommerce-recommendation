@@ -51,6 +51,15 @@ FORBIDDEN_WORDS = [
     "永久", "万能", "祖传", "纯天然",
 ]
 
+PROMPT_INJECTION_PATTERNS = [
+    re.compile(r"ignore\s+previous\s+instructions", re.IGNORECASE),
+    re.compile(r"system\s*:", re.IGNORECASE),
+    re.compile(r"assistant\s*:", re.IGNORECASE),
+    re.compile(r"developer\s*:", re.IGNORECASE),
+    re.compile(r"```"),
+    re.compile(r"<\|.*?\|>"),
+]
+
 # 预编译正则表达式
 _FORBIDDEN_WORDS_PATTERNS = {
     word: re.compile(re.escape(word)) for word in FORBIDDEN_WORDS
@@ -70,6 +79,7 @@ class MarketingCopyAgent(BaseAgent):
             timeout=settings.agent_timeout_marketing_copy,
         )
         self.llm_enabled = bool(settings.llm_api_key and settings.llm_api_key.strip())
+        self.max_llm_field_chars = 120
         self.llm: ChatOpenAI | None = None
         if self.llm_enabled:
             self.llm = ChatOpenAI(
@@ -107,10 +117,7 @@ class MarketingCopyAgent(BaseAgent):
         template_key = self._select_template(user_profile)
         system_prompt = PROMPT_TEMPLATES[template_key]
 
-        product_info = "\n".join(
-            f"- ID:{p.product_id} 名称:{p.name} 类目:{p.category} 价格:¥{p.price} 标签:{','.join(p.tags)}"
-            for p in products
-        )
+        product_info = "\n".join(self._safe_product_prompt_line(p) for p in products)
 
         messages = [
             SystemMessage(content=system_prompt + COPY_OUTPUT_INSTRUCTION),
@@ -181,3 +188,22 @@ class MarketingCopyAgent(BaseAgent):
             text = f"根据你的近期偏好，推荐 {product.name}，适配当前浏览场景。"
 
         return self._compliance_check({"copy": text})["copy"]
+
+    def _safe_product_prompt_line(self, product: Product) -> str:
+        safe_tags = ",".join(self._sanitize_text(tag) for tag in product.tags[:8])
+        return (
+            f"- ID:{self._sanitize_text(product.product_id, 32)} "
+            f"名称:{self._sanitize_text(product.name)} "
+            f"类目:{self._sanitize_text(product.category, 64)} "
+            f"价格:¥{product.price} "
+            f"标签:{safe_tags}"
+        )
+
+    def _sanitize_text(self, text: str, max_chars: int | None = None) -> str:
+        clean = str(text).strip()
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            clean = pattern.sub("[filtered]", clean)
+        limit = max_chars or self.max_llm_field_chars
+        if len(clean) > limit:
+            clean = clean[:limit]
+        return clean

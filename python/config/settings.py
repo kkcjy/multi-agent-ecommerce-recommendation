@@ -36,7 +36,56 @@ class Settings(BaseSettings):
     agent_timeout_marketing_copy: float = 10.0
     agent_timeout_inventory: float = 5.0
 
+    # Request-level timeout & retry
+    request_timeout_seconds: float = 12.0
+    agent_max_retries: int = 2
+    agent_retry_backoff_factor: float = 0.5
+    agent_retry_backoff_max: float = 4.0
+
+    # Circuit breaker
+    circuit_breaker_enabled: bool = True
+    circuit_breaker_failure_threshold: int = 3  # 失败次数阈值
+    circuit_breaker_window_seconds: int = 60    # 时间窗口
+
+    # Cache configuration
+    cache_user_profile_ttl_seconds: int = 3600  # Redis TTL: 1h
+    cache_user_profile_local_ttl_seconds: int = 60  # 本地 L1 缓存: 1min
+    cache_product_recall_ttl_seconds: int = 300  # 产品推荐缓存: 5min
+    cache_local_maxsize: int = 128  # lru_cache 大小
+
+    # Metrics configuration
+    metrics_business_event_max_size: int = 1000  # 循环缓冲区大小
+    metrics_business_event_sampling_rate: int = 100  # 采样率: 每 100 个请求采 1 条
+
+    # Security
+    admin_api_key: str = ""
+    cors_allow_origins: str = "http://localhost:8866,http://127.0.0.1:8866"
+    cors_allow_methods: str = "GET,POST,OPTIONS"
+    cors_allow_headers: str = "Content-Type,Authorization,X-API-Key"
+    security_max_scene_length: int = 64
+    security_max_context_keys: int = 30
+    security_max_context_chars: int = 4096
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_recommend_per_window: int = 30
+    rate_limit_graph_per_window: int = 20
+
     model_config = {"env_file": ".env", "env_prefix": "ECOM_"}
+
+    def _split_csv(self, raw: str) -> list[str]:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_origins)
+
+    @property
+    def cors_methods_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_methods)
+
+    @property
+    def cors_headers_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_headers)
 
 
 @lru_cache()

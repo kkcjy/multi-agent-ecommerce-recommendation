@@ -27,6 +27,7 @@
           <h2>Experiments</h2>
           <button id="reloadExperiments" type="button">Refresh</button>
         </div>
+        <div id="experimentsState" class="status subtle">Ready to load experiments.</div>
         <div id="experimentsContainer" class="stack"></div>
       </section>
 
@@ -35,6 +36,7 @@
           <h2>Agent Metrics</h2>
           <button id="reloadMetrics" type="button">Refresh</button>
         </div>
+        <div id="metricsState" class="status subtle">Ready to load metrics.</div>
         <div id="metricsContainer" class="stack"></div>
       </section>
 
@@ -44,11 +46,13 @@
           <label>
             Experiment ID
             <input id="experimentId" type="text" value="rec_strategy" required />
+            <small class="field-hint">Must match an existing experiment id.</small>
           </label>
 
           <label>
             Group Name
             <input id="groupName" type="text" value="control" required />
+            <small class="field-hint">Use control or treatment group names from above.</small>
           </label>
 
           <label>
@@ -59,12 +63,13 @@
             </select>
           </label>
 
-          <button type="submit">Submit Outcome</button>
+          <button id="outcomeSubmitBtn" type="submit">Submit Outcome</button>
         </form>
         <div id="outcomeState" class="status">Ready.</div>
       </section>
     </main>
 
+    <script src="/assets/common.js"></script>
     <script src="/assets/admin.js"></script>
   </body>
 </html>

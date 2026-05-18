@@ -83,12 +83,27 @@ app.mount(
 
 @app.get("/")
 async def root():
-    return RedirectResponse(url="/user", status_code=307)
+    return RedirectResponse(url="/home", status_code=307)
+
+
+@app.get("/home")
+async def home_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "home.html"))
 
 
 @app.get("/user")
 async def user_portal():
     return FileResponse(os.path.join(FRONTEND_DIR, "user.html"))
+
+
+@app.get("/category")
+async def category_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "category.html"))
+
+
+@app.get("/search")
+async def search_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "search.html"))
 
 
 @app.get("/admin")

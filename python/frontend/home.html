@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NovaCart - 智能电商推荐</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/home.css" />
+  </head>
+  <body class="page page-home">
+    <!-- 背景装饰 -->
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+
+    <!-- 头部导航 -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand-wrapper">
+          <h1 class="brand">
+            <span class="brand-icon">✨</span>
+            <span class="brand-text">NovaCart</span>
+          </h1>
+          <span class="brand-tagline">智能推荐 · 精选好物</span>
+        </div>
+
+        <nav class="main-nav">
+          <a class="nav-item active" href="/home">
+            <span class="nav-icon">🏠</span>
+            <span>首页</span>
+          </a>
+          <a class="nav-item" href="/category">
+            <span class="nav-icon">📦</span>
+            <span>分类</span>
+          </a>
+          <a class="nav-item" href="/search">
+            <span class="nav-icon">🔍</span>
+            <span>搜索</span>
+          </a>
+          <a class="nav-item" href="/user">
+            <span class="nav-icon">👤</span>
+            <span>个人中心</span>
+          </a>
+        </nav>
+
+        <div class="header-actions">
+          <div class="search-box">
+            <input type="text" placeholder="搜索商品、品牌、类目" id="headerSearch" />
+            <button class="search-btn" id="headerSearchBtn">🔍</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主导航/楼层导航 -->
+    <div class="floor-nav" id="floorNav">
+      <div class="floor-nav-inner">
+        <a class="floor-item" href="#intent">你想搜</a>
+        <a class="floor-item" href="#hot">热门商品</a>
+        <a class="floor-item" href="#personal">个性化推荐</a>
+        <a class="floor-item" href="#new">新品首发</a>
+      </div>
+    </div>
+
+    <main class="home-layout">
+      <!-- 左侧：主要内容区 -->
+      <section class="main-content">
+        <!-- Banner 区域 -->
+        <div class="banner-section reveal">
+          <div class="banner-card">
+            <div class="banner-content">
+              <h2 class="banner-title">AI 智能推荐</h2>
+              <p class="banner-subtitle">根据您的喜好和行为，为您精选最合适的商品</p>
+              <button class="banner-cta" id="refreshRecommend">立即探索</button>
+            </div>
+            <div class="banner-decoration">
+              <div class="floating-card">📱</div>
+              <div class="floating-card" style="animation-delay: 0.2s">🎧</div>
+              <div class="floating-card" style="animation-delay: 0.4s">⌚</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 你想搜（搜索意图） -->
+        <section class="recommend-section reveal" id="intent">
+          <div class="section-header">
+            <div class="section-title-wrapper">
+              <h2 class="section-title">
+                <span class="title-icon">💭</span>
+                你想搜
+              </h2>
+              <p class="section-subtitle">根据您的搜索历史和浏览意图推荐</p>
+            </div>
+            <div class="section-actions">
+              <button class="refresh-btn" data-segment="intent">🔄 换一批</button>
+            </div>
+          </div>
+          <div class="product-grid" id="intentGrid">
+            <div class="loading-skeleton">
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 站内热门 -->
+        <section class="recommend-section reveal" id="hot">
+          <div class="section-header">
+            <div class="section-title-wrapper">
+              <h2 class="section-title">
+                <span class="title-icon">🔥</span>
+                站内热门
+              </h2>
+              <p class="section-subtitle">热销爆款 · 人气精选</p>
+            </div>
+            <div class="section-actions">
+              <div class="sort-tabs">
+                <button class="sort-tab active" data-sort="sales">销量</button>
+                <button class="sort-tab" data-sort="price">价格</button>
+                <button class="sort-tab" data-sort="new">新品</button>
+              </div>
+              <button class="refresh-btn" data-segment="hot">🔄 换一批</button>
+            </div>
+          </div>
+          <div class="product-grid" id="hotGrid">
+            <div class="loading-skeleton">
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 个性化推荐 -->
+        <section class="recommend-section reveal" id="personal">
+          <div class="section-header">
+            <div class="section-title-wrapper">
+              <h2 class="section-title">
+                <span class="title-icon">✨</span>
+                个性化推荐
+              </h2>
+              <p class="section-subtitle">AI 算法 · 懂你所想</p>
+            </div>
+            <div class="section-actions">
+              <button class="refresh-btn" data-segment="personal">🔄 换一批</button>
+            </div>
+          </div>
+          <div class="product-grid" id="personalGrid">
+            <div class="loading-skeleton">
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 新品首发 -->
+        <section class="recommend-section reveal" id="new">
+          <div class="section-header">
+            <div class="section-title-wrapper">
+              <h2 class="section-title">
+                <span class="title-icon">🆕</span>
+                新品首发
+              </h2>
+              <p class="section-subtitle">最新上架 · 抢先体验</p>
+            </div>
+            <div class="section-actions">
+              <button class="refresh-btn" data-segment="new">🔄 换一批</button>
+            </div>
+          </div>
+          <div class="product-grid" id="newGrid">
+            <div class="loading-skeleton">
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- 右侧：侧边栏 -->
+      <aside class="sidebar">
+        <!-- 用户画像卡片 -->
+        <div class="sidebar-card reveal">
+          <h3 class="sidebar-title">👤 用户画像</h3>
+          <div class="user-profile" id="userProfile">
+            <div class="profile-placeholder">
+              <span class="profile-icon">👤</span>
+              <span class="profile-text">登录后查看更多</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最近浏览 -->
+        <div class="sidebar-card reveal delay-1">
+          <h3 class="sidebar-title">👁 最近浏览</h3>
+          <div class="recent-views" id="recentViews">
+            <div class="empty-state">暂无浏览记录</div>
+          </div>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="sidebar-card reveal delay-2">
+          <h3 class="sidebar-title">🎯 快速筛选</h3>
+          <div class="filter-group">
+            <label class="filter-label">价格区间</label>
+            <div class="price-range">
+              <input type="number" placeholder="最低" id="minPrice" />
+              <span>-</span>
+              <input type="number" placeholder="最高" id="maxPrice" />
+            </div>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">商品类目</label>
+            <div class="category-tags" id="categoryFilters">
+              <button class="category-tag active" data-category="all">全部</button>
+              <button class="category-tag" data-category="手机">手机</button>
+              <button class="category-tag" data-category="平板">平板</button>
+              <button class="category-tag" data-category="耳机">耳机</button>
+              <button class="category-tag" data-category="配件">配件</button>
+            </div>
+          </div>
+          <button class="apply-filter-btn" id="applyFilter">应用筛选</button>
+        </div>
+
+        <!-- 活动专区 -->
+        <div class="sidebar-card reveal delay-3 promo-card">
+          <h3 class="sidebar-title">🎁 活动专区</h3>
+          <div class="promo-content">
+            <div class="promo-item">
+              <span class="promo-badge">限时</span>
+              <span>满 300 减 30</span>
+            </div>
+            <div class="promo-item">
+              <span class="promo-badge">新人</span>
+              <span>首单立减 20</span>
+            </div>
+            <div class="promo-item">
+              <span class="promo-badge">会员</span>
+              <span>专享 95 折</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-section">
+          <h4>关于我们</h4>
+          <a href="#">公司简介</a>
+          <a href="#">联系方式</a>
+          <a href="#">加入我们</a>
+        </div>
+        <div class="footer-section">
+          <h4>客户服务</h4>
+          <a href="#">帮助中心</a>
+          <a href="#">退换货政策</a>
+          <a href="#">配送说明</a>
+        </div>
+        <div class="footer-section">
+          <h4>商家服务</h4>
+          <a href="#">商家入驻</a>
+          <a href="#">广告服务</a>
+          <a href="#">合作洽谈</a>
+        </div>
+        <div class="footer-section">
+          <h4>关注我们</h4>
+          <div class="social-links">
+            <a href="#" class="social-link">微信</a>
+            <a href="#" class="social-link">微博</a>
+            <a href="#" class="social-link">抖音</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 NovaCart. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <!-- 加载提示 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/assets/common.js"></script>
+    <script src="/assets/home.js"></script>
+  </body>
+</html>

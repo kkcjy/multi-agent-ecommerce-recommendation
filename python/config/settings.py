@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     llm_model: str = "MiniMax-M1"
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2048
+    llm_enable_thinking: bool = False
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

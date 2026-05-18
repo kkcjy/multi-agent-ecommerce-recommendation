@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>搜索商品 - NovaCart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/search.css" />
+  </head>
+  <body class="page page-search">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="/home" class="brand-wrapper" style="text-decoration:none">
+          <h1 class="brand">
+            <span class="brand-icon">✨</span>
+            <span class="brand-text">NovaCart</span>
+          </h1>
+          <span class="brand-tagline">智能推荐 · 精选好物</span>
+        </a>
+
+        <nav class="main-nav">
+          <a class="nav-item" href="/home"><span class="nav-icon">🏠</span><span>首页</span></a>
+          <a class="nav-item" href="/category"><span class="nav-icon">📦</span><span>分类</span></a>
+          <a class="nav-item active" href="/search"><span class="nav-icon">🔍</span><span>搜索</span></a>
+          <a class="nav-item" href="/user"><span class="nav-icon">👤</span><span>个人中心</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="search-layout">
+      <!-- 搜索主区域 -->
+      <section class="search-hero">
+        <div class="search-hero-inner">
+          <h2 class="search-hero-title">🔍 搜索你想要的</h2>
+          <div class="search-bar-lg">
+            <input type="text" id="mainSearch" placeholder="搜索商品名称、类目、标签..." autofocus />
+            <button id="mainSearchBtn">搜索</button>
+          </div>
+          <div class="search-suggestions" id="searchSuggestions"></div>
+        </div>
+      </section>
+
+      <!-- 搜索结果 + 侧边栏 -->
+      <div class="search-body">
+        <aside class="search-sidebar">
+          <div class="sidebar-card">
+            <h3 class="sidebar-title">🕐 最近搜索</h3>
+            <div class="recent-searches" id="recentSearches">
+              <div class="empty-state">暂无搜索记录</div>
+            </div>
+            <button class="clear-btn" id="clearSearches" style="display:none">清除记录</button>
+          </div>
+
+          <div class="sidebar-card">
+            <h3 class="sidebar-title">🔥 热门搜索</h3>
+            <div class="hot-searches" id="hotSearches">
+              <button class="hot-search-item" data-query="iPhone">📱 iPhone</button>
+              <button class="hot-search-item" data-query="耳机">🎧 耳机</button>
+              <button class="hot-search-item" data-query="平板">💻 平板</button>
+              <button class="hot-search-item" data-query="充电器">🔌 充电器</button>
+              <button class="hot-search-item" data-query="游戏">🎮 游戏</button>
+              <button class="hot-search-item" data-query="性价比">💰 性价比</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="search-results">
+          <div class="results-header" id="resultsHeader">
+            <h3 class="results-title">搜索结果</h3>
+            <span class="results-count" id="resultsCount"></span>
+          </div>
+          <div class="product-grid" id="searchResultGrid">
+            <div class="empty-state search-empty">
+              <span style="font-size:3rem">🔍</span>
+              <p style="margin-top:1rem">输入关键词开始搜索</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-section">
+          <h4>关于我们</h4>
+          <a href="#">公司简介</a>
+          <a href="#">联系方式</a>
+          <a href="#">加入我们</a>
+        </div>
+        <div class="footer-section">
+          <h4>客户服务</h4>
+          <a href="#">帮助中心</a>
+          <a href="#">退换货政策</a>
+          <a href="#">配送说明</a>
+        </div>
+        <div class="footer-section">
+          <h4>商家服务</h4>
+          <a href="#">商家入驻</a>
+          <a href="#">广告服务</a>
+          <a href="#">合作洽谈</a>
+        </div>
+        <div class="footer-section">
+          <h4>关注我们</h4>
+          <div class="social-links">
+            <a href="#" class="social-link">微信</a>
+            <a href="#" class="social-link">微博</a>
+            <a href="#" class="social-link">抖音</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 NovaCart. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="/assets/common.js"></script>
+    <script src="/assets/search.js"></script>
+  </body>
+</html>

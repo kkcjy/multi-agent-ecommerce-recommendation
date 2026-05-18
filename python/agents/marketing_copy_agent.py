@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import json
 import re
+import asyncio
+import time
+import structlog
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -86,9 +90,12 @@ class MarketingCopyAgent(BaseAgent):
                 api_key=settings.llm_api_key,
                 base_url=settings.llm_base_url,
                 model=settings.llm_model,
-                temperature=0.9,
-                max_tokens=2048,
+                temperature=0.7,
+                max_tokens=200,
+                extra_body={"enable_thinking": settings.llm_enable_thinking},
             )
+        self._llm_executor = ThreadPoolExecutor(max_workers=2)
+        self.logger = structlog.get_logger()
 
     async def _execute(self, **kwargs: Any) -> MarketingCopyResult:
         user_profile: UserProfile | None = kwargs.get("user_profile")
@@ -123,7 +130,37 @@ class MarketingCopyAgent(BaseAgent):
             SystemMessage(content=system_prompt + COPY_OUTPUT_INSTRUCTION),
             HumanMessage(content=f"商品列表:\n{product_info}"),
         ]
-        response = await self.llm.ainvoke(messages)
+
+        # 添加超时保护，使用线程池运行 LLM 调用
+        response = None
+        try:
+            loop = asyncio.get_event_loop()
+            def _llm_call():
+                return self.llm.invoke(messages)
+            response = await asyncio.wait_for(
+                loop.run_in_executor(self._llm_executor, _llm_call),
+                timeout=2.0  # 2 秒超时
+            )
+        except (asyncio.TimeoutError, Exception) as e:
+            self.logger.warning("marketing_copy.llm_error", error=str(e))
+
+        # 如果 LLM 失败或超时，使用 fallback 文案
+        if response is None:
+            fallback_copies = [
+                {
+                    "product_id": p.product_id,
+                    "title": p.name,
+                    "copy": self._fallback_copy(user_profile, p),
+                }
+                for p in products
+            ]
+            return MarketingCopyResult(
+                success=True,
+                copies=fallback_copies,
+                prompt_template_used="fallback_template",
+                data={"fallback": "llm_timeout"},
+                confidence=0.7,
+            )
 
         copies = self._parse_copies(response.content)
         copies = [self._compliance_check(c) for c in copies]

@@ -102,6 +102,8 @@ async def product_recall_node(state: PipelineState) -> PipelineState:
     result = await _get_product_rec_agent().run(
         user_profile=None,
         num_items=state.get("num_items", 10) * 2,
+        scene=state.get("scene"),
+        context=state.get("context", {}),
     )
     state["raw_products"] = getattr(result, "products", [])
     state["agent_results"]["product_recall"] = result
@@ -123,6 +125,8 @@ async def rerank_node(state: PipelineState) -> PipelineState:
     result = await _get_product_rec_agent().run(
         user_profile=state.get("user_profile"),
         num_items=state.get("num_items", 10),
+        scene=state.get("scene"),
+        context=state.get("context", {}),
     )
     state["ranked_products"] = getattr(result, "products", state.get("raw_products", []))
     state["agent_results"]["rerank"] = result

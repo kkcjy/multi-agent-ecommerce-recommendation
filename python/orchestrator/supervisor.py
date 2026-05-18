@@ -68,19 +68,41 @@ class SupervisorOrchestrator:
             scene=request.scene,
         )
 
-        experiment = self.ab_engine.assign(request.user_id)
+        # 调试日志：检查请求到达
+        logger.info("supervisor.request_received", request_id=request_id)
 
-        # Phase 1: parallel — user profile + product recall
-        profile_result, rec_result = await asyncio.gather(
-            self.user_profile_agent.run(
+        experiment = self.ab_engine.assign(request.user_id)
+        logger.info("supervisor.phase1_start", request_id=request_id)
+
+        # Phase 1: user profile + product recall
+        # personal 场景需要先获取画像再做个性化召回（串行）
+        # 其他场景并行执行（intent 可直接从 context.recent_views 提取类目）
+        if request.scene == "personal":
+            profile_result = await self.user_profile_agent.run(
                 user_id=request.user_id,
                 context=request.context,
-            ),
-            self.product_rec_agent.run(
-                user_profile=None,
+            )
+            user_profile = getattr(profile_result, "profile", None)
+            rec_result = await self.product_rec_agent.run(
+                user_profile=user_profile,
                 num_items=request.num_items * 2,
-            ),
-        )
+                scene=request.scene,
+                context=request.context,
+            )
+        else:
+            profile_result, rec_result = await asyncio.gather(
+                self.user_profile_agent.run(
+                    user_id=request.user_id,
+                    context=request.context,
+                ),
+                self.product_rec_agent.run(
+                    user_profile=None,
+                    num_items=request.num_items * 2,
+                    scene=request.scene,
+                    context=request.context,
+                ),
+            )
+        logger.info("supervisor.phase1_complete", request_id=request_id)
 
         user_profile: UserProfile | None = getattr(profile_result, "profile", None)
         raw_products: list[Product] = getattr(rec_result, "products", [])
@@ -89,6 +111,8 @@ class SupervisorOrchestrator:
         rerank_task = self.product_rec_agent.run(
             user_profile=user_profile,
             num_items=request.num_items,
+            scene=request.scene,
+            context=request.context,
         )
         inventory_task = self.inventory_agent.run(products=raw_products)
 

@@ -13,90 +13,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from prometheus_client import Counter, Histogram, CollectorRegistry, generate_latest
+from prometheus_client import Counter
 
-
-# ============================================================================
-# 错误类型枚举
-# ============================================================================
-
-class ErrorType(str, Enum):
-    """Agent 错误类型枚举，防止高基数 label 导致 Prometheus OOM。"""
-    TIMEOUT = "timeout"           # 请求超时
-    LLM_ERROR = "llm_error"       # LLM 调用失败
-    REDIS_ERROR = "redis_error"   # Redis 连接错误
-    VALIDATION_ERROR = "validation_error"  # 输入校验失败
-    UNKNOWN = "unknown"           # 其他未知错误
-
-    @staticmethod
-    def categorize(error_msg: str) -> "ErrorType":
-        """根据错误消息分类到具体的错误类型。"""
-        error_lower = error_msg.lower()
-        
-        if "timeout" in error_lower or "timed out" in error_lower:
-            return ErrorType.TIMEOUT
-        elif "redis" in error_lower or "connection refused" in error_lower:
-            return ErrorType.REDIS_ERROR
-        elif "openai" in error_lower or "llm" in error_lower or "api" in error_lower:
-            return ErrorType.LLM_ERROR
-        elif "validation" in error_lower or "invalid" in error_lower:
-            return ErrorType.VALIDATION_ERROR
-        else:
-            return ErrorType.UNKNOWN
-
-# ============================================================================
-# Prometheus 指标定义
-# ============================================================================
-
-# 全局 Registry（在 main.py 中使用）
-REGISTRY = CollectorRegistry()
-
-# 请求级指标
-request_duration_seconds = Histogram(
-    'request_duration_seconds',
-    'HTTP request latency in seconds',
-    buckets=(0.1, 0.5, 1.0, 3.0, 5.0, 10.0),
-    labelnames=['endpoint', 'method'],
-    registry=REGISTRY,
-)
-
-requests_total = Counter(
-    'requests_total',
-    'Total HTTP requests',
-    labelnames=['endpoint', 'method', 'status'],
-    registry=REGISTRY,
-)
-
-# Agent 级指标
-agent_duration_seconds = Histogram(
-    'agent_duration_seconds',
-    'Agent execution latency in seconds',
-    buckets=(0.5, 1.0, 2.0, 5.0, 10.0),
-    labelnames=['agent_name'],
-    registry=REGISTRY,
-)
-
-agent_errors_total = Counter(
-    'agent_errors_total',
-    'Total agent errors',
-    labelnames=['agent_name', 'error_type'],
-    registry=REGISTRY,
-)
-
-# 缓存指标
-cache_hits_total = Counter(
-    'cache_hits_total',
-    'Total cache hits',
-    labelnames=['cache_name'],
-    registry=REGISTRY,
-)
-
-cache_misses_total = Counter(
-    'cache_misses_total',
-    'Total cache misses',
-    labelnames=['cache_name'],
-    registry=REGISTRY,
-)
+cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
+cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
 
 
 @dataclass

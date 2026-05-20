@@ -23,6 +23,53 @@ const State = {
   query: ''
 };
 
+function parseCategoryUrl() {
+  const params = new URLSearchParams(window.location.search);
+  State.currentCategory = params.get('category') || 'all';
+  State.currentSort = params.get('sort') || 'default';
+  State.currentTag = params.get('tag') || null;
+  State.priceMin = params.has('min_price') ? parseFloat(params.get('min_price')) : null;
+  State.priceMax = params.has('max_price') ? parseFloat(params.get('max_price')) : null;
+  State.page = Number(params.get('page')) || 1;
+  State.pageSize = Number(params.get('page_size')) || 12;
+  State.query = params.get('q') || '';
+}
+
+function updateCategoryUrl(replace = true) {
+  const params = new URLSearchParams();
+  if (State.currentCategory && State.currentCategory !== 'all') {
+    params.set('category', State.currentCategory);
+  }
+  if (State.currentSort && State.currentSort !== 'default') {
+    params.set('sort', State.currentSort);
+  }
+  if (State.currentTag) {
+    params.set('tag', State.currentTag);
+  }
+  if (State.priceMin !== null) {
+    params.set('min_price', String(State.priceMin));
+  }
+  if (State.priceMax !== null) {
+    params.set('max_price', String(State.priceMax));
+  }
+  if (State.page > 1) {
+    params.set('page', String(State.page));
+  }
+  if (State.pageSize !== 12) {
+    params.set('page_size', String(State.pageSize));
+  }
+  if (State.query) {
+    params.set('q', State.query);
+  }
+  const queryString = params.toString();
+  const url = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+  if (replace) {
+    window.history.replaceState(null, '', url);
+  } else {
+    window.history.pushState(null, '', url);
+  }
+}
+
 function formatPrice(price) {
   return '¥' + Number(price).toLocaleString('zh-CN');
 }
@@ -39,7 +86,16 @@ function escapeHtml(text) {
 
 // ==================== 数据加载 ====================
 async function loadProducts() {
+  parseCategoryUrl();
   const grid = document.getElementById('categoryProductGrid');
+  const searchInput = document.getElementById('headerSearch');
+  const titleLabel = document.getElementById('currentCategory');
+  if (searchInput && State.query) {
+    searchInput.value = State.query;
+  }
+  if (titleLabel) {
+    titleLabel.textContent = State.query ? `搜索：${State.query}` : (State.currentCategory === 'all' ? '全部商品' : State.currentCategory);
+  }
   grid.innerHTML = '<div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
 
   try {
@@ -139,15 +195,19 @@ function buildCategoryNav(products) {
   const items = categories.map(cat => {
     return `<button class="cat-nav-item" data-category="${escapeHtml(cat.id)}">${CATEGORY_MAP[cat.id] || '📦'} ${escapeHtml(cat.name)} <small style="color:var(--muted)">(${cat.count})</small></button>`;
   });
-  nav.innerHTML = '<button class="cat-nav-item active" data-category="all">全部商品</button>' + items.join('');
+  nav.innerHTML = '<button class="cat-nav-item" data-category="all">全部商品</button>' + items.join('');
 
   nav.querySelectorAll('.cat-nav-item').forEach(btn => {
+    if (btn.dataset.category === State.currentCategory) {
+      btn.classList.add('active');
+    }
     btn.addEventListener('click', () => {
       nav.querySelectorAll('.cat-nav-item').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       State.currentCategory = btn.dataset.category;
       State.query = '';
       State.page = 1;
+      updateCategoryUrl();
       applyFilters();
       document.getElementById('currentCategory').textContent = btn.dataset.category === 'all' ? '全部商品' : btn.dataset.category;
     });
@@ -254,6 +314,7 @@ function renderPagination() {
   container.querySelectorAll('.page-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       State.page = parseInt(btn.dataset.page);
+      updateCategoryUrl();
       if (State.allProducts && State.allProducts.length > 0) {
         renderPage();
       } else {
@@ -272,6 +333,7 @@ function initFilters() {
     State.priceMin = min;
     State.priceMax = max;
     State.page = 1;
+    updateCategoryUrl();
     applyFilters();
   });
 
@@ -286,6 +348,7 @@ function initFilters() {
         State.currentTag = tag.dataset.tag;
       }
       State.page = 1;
+      updateCategoryUrl();
       applyFilters();
     });
   });
@@ -296,6 +359,7 @@ function initFilters() {
       btn.classList.add('active');
       State.currentSort = btn.dataset.sort;
       State.page = 1;
+      updateCategoryUrl();
       applyFilters();
     });
   });
@@ -316,6 +380,7 @@ function initSearch() {
       if (allBtn) allBtn.classList.add('active');
       document.getElementById('currentCategory').textContent = `搜索：${input.value}`;
       State.page = 1;
+      updateCategoryUrl();
       applyFilters();
     }
   };

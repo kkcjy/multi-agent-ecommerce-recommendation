@@ -210,7 +210,42 @@
   margin-bottom: 1rem; padding: 0.5rem 0;
 }
 
+.segment-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.segment-tab {
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.15);
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 150ms ease;
+}
+
+.segment-tab:hover {
+  background: rgba(255,255,255,0.28);
+}
+
+.segment-tab.active {
+  background: white;
+  color: var(--text);
+  border-color: rgba(13, 122, 105, 0.2);
+}
+
 .results-title { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+
+.segment-label {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin-left: auto;
+}
 
 .results-count { font-size: 0.85rem; color: var(--muted); }
 
@@ -218,6 +253,41 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 42px;
+  height: 38px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--text);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
+}
+
+.page-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 .product-card {

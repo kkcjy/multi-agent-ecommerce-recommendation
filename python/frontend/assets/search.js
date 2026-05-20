@@ -123,59 +123,197 @@ function renderRecentSearches() {
 }
 
 // ==================== 搜索执行 ====================
-async function performSearch(query) {
-  const qRaw = query.trim();
-  const q = qRaw.toLowerCase();
-  const grid = document.getElementById('searchResultGrid');
-  const count = document.getElementById('resultsCount');
+const SEGMENT_TITLES = {
+  intent: '你想搜',
+  hot: '站内热门',
+  personal: '个性化推荐'
+};
 
-  if (!qRaw) {
-    grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">🔍</span><p style="margin-top:1rem">输入关键词开始搜索</p></div>';
-    count.textContent = '';
+const SearchState = {
+  segment: 'intent',
+  q: '',
+  page: 1,
+  pageSize: 12,
+  total: 0
+};
+
+// per-segment page memory, simple page cache and scroll positions
+SearchState.perSegmentPage = { intent: 1, hot: 1, personal: 1 };
+SearchState.cache = {}; // key: `${segment}:${page}` -> { items, total }
+SearchState.scrollPositions = {}; // segment -> scrollY
+
+function updateSearchUrl(replace = true) {
+  const params = new URLSearchParams();
+  if (SearchState.q) params.set('q', SearchState.q);
+  if (SearchState.segment && SearchState.segment !== 'intent') params.set('segment', SearchState.segment);
+  if (SearchState.page && SearchState.page > 1) params.set('page', String(SearchState.page));
+  if (SearchState.pageSize && SearchState.pageSize !== 12) params.set('page_size', String(SearchState.pageSize));
+  const queryString = params.toString();
+  const url = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+  if (replace) {
+    window.history.replaceState(null, '', url);
+  } else {
+    window.history.pushState(null, '', url);
+  }
+}
+
+function setSegmentActive(segment) {
+  const prev = SearchState.segment;
+  // save current page and scroll for previous segment
+  if (prev && prev !== segment) {
+    SearchState.perSegmentPage[prev] = SearchState.page || 1;
+    try { SearchState.scrollPositions[prev] = window.scrollY || 0; } catch (e) { /* noop */ }
+  }
+
+  // set active segment and restore its page if we have one
+  SearchState.segment = segment;
+  SearchState.page = SearchState.perSegmentPage[segment] || 1;
+
+  document.querySelectorAll('.segment-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.segment === segment);
+  });
+  document.getElementById('segmentTabs').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // restore scroll position for the segment if recorded
+  const pos = SearchState.scrollPositions[segment];
+  if (pos !== undefined) {
+    setTimeout(() => { try { window.scrollTo(0, pos); } catch (e) {} }, 60);
+  }
+}
+
+function renderSearchHeader() {
+  const header = document.getElementById('resultsHeader');
+  const label = document.getElementById('segmentLabel');
+  if (label) {
+    label.textContent = SearchState.q ? `${SEGMENT_TITLES[SearchState.segment]} - ${SearchState.q}` : SEGMENT_TITLES[SearchState.segment];
+  }
+}
+
+function renderSearchPagination() {
+  const container = document.getElementById('searchPagination');
+  const totalPages = Math.ceil(SearchState.total / SearchState.pageSize);
+  if (!container) return;
+  if (totalPages <= 1) {
+    container.innerHTML = '';
     return;
   }
 
-  saveSearch(qRaw);
+  const pages = [];
+  for (let i = 1; i <= totalPages; i += 1) {
+    pages.push(`<button class="page-btn ${i === SearchState.page ? 'active' : ''}" data-page="${i}">${i}</button>`);
+  }
+  container.innerHTML = pages.join('');
+  container.querySelectorAll('.page-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextPage = Number(btn.dataset.page);
+      if (nextPage === SearchState.page) return;
+      SearchState.page = nextPage;
+      loadSearchSegment();
+    });
+  });
+}
+
+function renderSearchResults(products, total) {
+  const grid = document.getElementById('searchResultGrid');
+  const count = document.getElementById('resultsCount');
+
+  SearchState.total = total !== undefined ? total : products.length;
+  renderSearchHeader();
+  updateSearchUrl();
+  count.textContent = `共 ${SearchState.total} 个结果`;
+
+  if (!products || products.length === 0) {
+    grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">😕</span><p style="margin-top:1rem">未找到匹配的商品</p><p style="color:var(--muted);font-size:0.85rem">试试其他关键词</p></div>';
+    document.getElementById('searchPagination').innerHTML = '';
+    return;
+  }
+
+  renderProductCards(grid, products);
+  renderSearchPagination();
+}
+
+async function loadSearchSegment() {
+  const grid = document.getElementById('searchResultGrid');
+  const count = document.getElementById('resultsCount');
   grid.innerHTML = '<div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+  count.textContent = '';
+  renderSearchHeader();
 
   try {
-    const params = new URLSearchParams({
-      q: qRaw,
-      page: '1',
-      page_size: '60'
-    });
-    const data = await AppUI.fetchApiJson(`/api/v1/search?${params.toString()}`);
-    const results = AppUI.normalizeProducts(data.items);
-    const total = data.total !== undefined ? data.total : results.length;
+    // remember current page for this segment
+    SearchState.perSegmentPage[SearchState.segment] = SearchState.page || 1;
 
-    count.textContent = `共 ${total} 个结果`;
-
-    if (results.length === 0) {
-      grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">😕</span><p style="margin-top:1rem">未找到匹配的商品</p><p style="color:var(--muted);font-size:0.85rem">试试其他关键词</p></div>';
+    // check simple cache first
+    const cacheKey = `${SearchState.segment}:${SearchState.page}`;
+    const cached = SearchState.cache[cacheKey];
+    if (cached) {
+      renderSearchResults(cached.items, cached.total);
       return;
     }
 
-    renderProductCards(grid, results);
-  } catch (error) {
-    console.error('搜索失败:', error);
-    if (allProducts.length > 0) {
-      const results = allProducts.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q) ||
-        (p.tags || []).some(t => t.toLowerCase().includes(q)) ||
-        (p.brand || '').toLowerCase().includes(q)
-      );
-      count.textContent = `共 ${results.length} 个结果`;
-      if (results.length === 0) {
-        grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">😕</span><p style="margin-top:1rem">未找到匹配的商品</p><p style="color:var(--muted);font-size:0.85rem">试试其他关键词</p></div>';
-        return;
+    let data;
+    if (SearchState.segment === 'intent' && SearchState.q) {
+      const params = new URLSearchParams({
+        q: SearchState.q,
+        page: String(SearchState.page),
+        page_size: String(SearchState.pageSize)
+      });
+      data = await AppUI.fetchApiJson(`/api/v1/search?${params.toString()}`);
+    } else {
+      const params = new URLSearchParams({
+        segment: SearchState.segment,
+        page: String(SearchState.page),
+        page_size: String(SearchState.pageSize)
+      });
+      const recent = getSearches();
+      if (SearchState.segment === 'intent' && recent.length > 0) {
+        params.set('recent_views', recent.join(','));
       }
-      renderProductCards(grid, results);
+      if (SearchState.segment === 'personal' && recent.length > 0) {
+        params.set('preferred_categories', recent.join(','));
+      }
+      data = await AppUI.fetchApiJson(`/api/v1/recommendations?${params.toString()}`);
+    }
+
+    const results = AppUI.normalizeProducts(data.items || []);
+    const total = data.total !== undefined ? data.total : results.length;
+    // cache the page results for quick return
+    try { SearchState.cache[cacheKey] = { items: results, total }; } catch (e) { /* noop */ }
+    renderSearchResults(results, total);
+  } catch (error) {
+    console.error('加载分层次结果失败:', error);
+    if (SearchState.segment === 'intent' && SearchState.q && allProducts.length > 0) {
+      const qLower = SearchState.q.toLowerCase();
+      const results = allProducts.filter(p =>
+        p.name.toLowerCase().includes(qLower) ||
+        p.category.toLowerCase().includes(qLower) ||
+        (p.tags || []).some(t => t.toLowerCase().includes(qLower)) ||
+        (p.brand || '').toLowerCase().includes(qLower)
+      );
+      renderSearchResults(results, results.length);
       return;
     }
-    grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">⚠️</span><p style="margin-top:1rem">搜索服务不可用</p><p style="color:var(--muted);font-size:0.85rem">请稍后再试</p></div>';
-    count.textContent = '';
+    const gridFallback = document.getElementById('searchResultGrid');
+    gridFallback.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">⚠️</span><p style="margin-top:1rem">内容加载失败，请稍后重试</p></div>';
+    document.getElementById('searchPagination').innerHTML = '';
   }
+}
+
+async function performSearch(query) {
+  const qRaw = query.trim();
+  if (!qRaw) {
+    const grid = document.getElementById('searchResultGrid');
+    grid.innerHTML = '<div class="empty-state search-empty"><span style="font-size:3rem">🔍</span><p style="margin-top:1rem">输入关键词开始搜索</p></div>';
+    document.getElementById('resultsCount').textContent = '';
+    return;
+  }
+
+  SearchState.q = qRaw;
+  SearchState.segment = 'intent';
+  SearchState.page = 1;
+  saveSearch(qRaw);
+  setSegmentActive('intent');
+  await loadSearchSegment();
 }
 
 // ==================== 热门搜索 ====================
@@ -270,6 +408,30 @@ async function loadProducts() {
   }
 }
 
+function parseSearchUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q') || '';
+  const segment = params.get('segment') || 'intent';
+  const page = Number(params.get('page')) || 1;
+  const pageSize = Number(params.get('page_size')) || 12;
+
+  SearchState.q = q;
+  SearchState.segment = ['intent', 'hot', 'personal'].includes(segment) ? segment : 'intent';
+  SearchState.page = page;
+  SearchState.pageSize = pageSize;
+}
+
+function initSegmentTabs() {
+  document.querySelectorAll('.segment-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.segment;
+      if (!target || SearchState.segment === target) return;
+      setSegmentActive(target);
+      loadSearchSegment();
+    });
+  });
+}
+
 // ==================== 事件 ====================
 function initSearchEvents() {
   const input = document.getElementById('mainSearch');
@@ -280,24 +442,24 @@ function initSearchEvents() {
   input.addEventListener('input', () => updateSuggestions(input.value));
 
   document.getElementById('clearSearches').addEventListener('click', clearSearches);
-
-  const params = new URLSearchParams(window.location.search);
-  const q = params.get('q');
-  if (q) {
-    input.value = q;
-    performSearch(q);
-  }
 }
 
 // ==================== 初始化 ====================
-document.addEventListener('DOMContentLoaded', () => {
-  loadProducts().then(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('q')) {
-      performSearch(params.get('q'));
-    }
-  });
+document.addEventListener('DOMContentLoaded', async () => {
+  parseSearchUrl();
+  const input = document.getElementById('mainSearch');
+  if (input && SearchState.q) {
+    input.value = SearchState.q;
+  }
+
+  initSegmentTabs();
   renderRecentSearches();
   loadHotSearches();
+  await loadProducts();
+
+  setSegmentActive(SearchState.segment);
+  if (SearchState.q || SearchState.segment !== 'intent') {
+    loadSearchSegment();
+  }
   initSearchEvents();
 });

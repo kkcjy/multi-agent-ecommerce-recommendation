@@ -43,6 +43,11 @@
             <input type="text" id="mainSearch" placeholder="搜索商品名称、类目、标签..." autofocus />
             <button id="mainSearchBtn">搜索</button>
           </div>
+          <div class="segment-tabs" id="segmentTabs">
+            <button class="segment-tab active" data-segment="intent">你想搜</button>
+            <button class="segment-tab" data-segment="hot">站内热门</button>
+            <button class="segment-tab" data-segment="personal">个性化推荐</button>
+          </div>
           <div class="search-suggestions" id="searchSuggestions"></div>
         </div>
       </section>
@@ -75,6 +80,7 @@
           <div class="results-header" id="resultsHeader">
             <h3 class="results-title">搜索结果</h3>
             <span class="results-count" id="resultsCount"></span>
+            <span class="segment-label" id="segmentLabel"></span>
           </div>
           <div class="product-grid" id="searchResultGrid">
             <div class="empty-state search-empty">
@@ -82,6 +88,7 @@
               <p style="margin-top:1rem">输入关键词开始搜索</p>
             </div>
           </div>
+          <div class="pagination" id="searchPagination"></div>
         </section>
       </div>
     </main>

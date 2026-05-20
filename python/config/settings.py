@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
     feature_ttl_seconds: int = 86400
+    cache_local_maxsize: int = 1000
+    cache_user_profile_local_ttl_seconds: int = 60
+    cache_user_profile_ttl_seconds: int = 3600
 
     # Milvus
     milvus_host: str = "localhost"
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
     agent_timeout_marketing_copy: float = 10.0
     agent_timeout_inventory: float = 5.0
 
-    model_config = {"env_file": ".env", "env_prefix": "ECOM_"}
+    model_config = {"env_file": ".env", "env_prefix": "ECOM_", "extra": "ignore"}
 
 
 @lru_cache()

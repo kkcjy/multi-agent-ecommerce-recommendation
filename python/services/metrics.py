@@ -12,6 +12,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from prometheus_client import Counter
+
+cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
+cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
+
 
 @dataclass
 class AgentMetric:

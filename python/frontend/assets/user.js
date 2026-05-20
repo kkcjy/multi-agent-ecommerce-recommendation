@@ -78,22 +78,36 @@ async function loadPersonalRecs() {
 
   try {
     const prefs = getPrefs();
-    const resp = await AppUI.fetchJson('/api/v1/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: getUserId(),
-        scene: 'personal',
-        num_items: 8,
-        context: {
-          recent_views: prefs.categories,
-          purchase_count_30d: 3,
-          avg_order_amount: (prefs.minPrice + prefs.maxPrice) / 2
-        }
-      })
+    const params = new URLSearchParams({
+      segment: 'personal',
+      page: '1',
+      page_size: '8'
     });
+    if (prefs.categories.length > 0) {
+      params.set('preferred_categories', prefs.categories.join(','));
+    }
 
-    const products = AppUI.asArray(resp.products);
+    let products = [];
+    try {
+      const data = await AppUI.fetchApiJson(`/api/v1/recommendations?${params.toString()}`);
+      products = AppUI.normalizeProducts(data.items || []);
+    } catch (error) {
+      const resp = await AppUI.fetchJson('/api/v1/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: getUserId(),
+          scene: 'personal',
+          num_items: 8,
+          context: {
+            recent_views: prefs.categories,
+            purchase_count_30d: 3,
+            avg_order_amount: (prefs.minPrice + prefs.maxPrice) / 2
+          }
+        })
+      });
+      products = AppUI.normalizeProducts(resp.products || []);
+    }
     renderProductGrid(grid, products, true);
 
     // 保存推荐历史
@@ -111,13 +125,14 @@ async function loadPersonalRecs() {
 }
 
 function renderProductGrid(container, products, showFavBtn) {
-  if (!products || products.length === 0) {
+  const safeProducts = AppUI.normalizeProducts(products);
+  if (!safeProducts || safeProducts.length === 0) {
     container.innerHTML = '<div class="empty-state">暂无商品</div>';
     return;
   }
 
   const favs = getFavorites();
-  container.innerHTML = products.map((product, idx) => {
+  container.innerHTML = safeProducts.map((product, idx) => {
     const emoji = getEmoji(product.category);
     const isFav = favs.some(f => f.product_id === product.product_id);
     const tags = (product.tags || []).slice(0, 2).map(tag => {
@@ -145,7 +160,7 @@ function renderProductGrid(container, products, showFavBtn) {
     container.querySelectorAll('.fav-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleFavorite(btn.dataset.pid, products, btn);
+        toggleFavorite(btn.dataset.pid, safeProducts, btn);
       });
     });
   }

@@ -50,23 +50,42 @@ function getProductEmoji(category) {
     '平板': '💻',
     '耳机': '🎧',
     '配件': '🔌',
-    '手表': '⌚',
-    '电脑': '💻',
+    '笔记本': '💻',
+    '显示器': '🖥',
+    '存储': '💾',
+    '穿戴': '⌚',
+    '无人机': '🛸',
+    '游戏机': '🎮',
   };
   return emojis[category] || '📦';
 }
 
 // ==================== 数据加载 ====================
-async function loadSegmentData(segment, numItems = 8) {
-  if (AppState.loadingSegments.has(segment)) return;
+async function fetchSegmentProducts(segment, numItems) {
+  const params = new URLSearchParams({
+    segment: segment,
+    page: '1',
+    page_size: String(numItems)
+  });
 
-  const gridElement = document.getElementById(`${segment}Grid`);
-  if (!gridElement) return;
+  if (segment === 'intent') {
+    const recent = getRecentViews();
+    if (recent.length > 0) {
+      params.set('recent_views', recent.join(','));
+    }
+  }
 
-  AppState.loadingSegments.add(segment);
-  showSkeleton(gridElement);
+  if (segment === 'personal') {
+    const recent = getRecentViews();
+    if (recent.length > 0) {
+      params.set('preferred_categories', recent.join(','));
+    }
+  }
 
   try {
+    const data = await AppUI.fetchApiJson(`/api/v1/recommendations?${params.toString()}`);
+    return data.items || [];
+  } catch (error) {
     const response = await fetch('/api/v1/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -77,15 +96,30 @@ async function loadSegmentData(segment, numItems = 8) {
         context: { recent_views: getRecentViews() }
       })
     });
+    const fallback = await response.json();
+    return fallback.products || [];
+  }
+}
 
-    const data = await response.json();
+async function loadSegmentData(segment, numItems = 8) {
+  if (AppState.loadingSegments.has(segment)) return;
 
-    if (data.products && data.products.length > 0) {
-      AppState.segments[segment] = data.products;
-      renderProducts(gridElement, data.products, segment);
+  const gridElement = document.getElementById(`${segment}Grid`);
+  if (!gridElement) return;
+
+  AppState.loadingSegments.add(segment);
+  showSkeleton(gridElement);
+
+  try {
+    const products = await fetchSegmentProducts(segment, numItems);
+    const normalized = AppUI.normalizeProducts(products);
+
+    if (normalized.length > 0) {
+      AppState.segments[segment] = normalized;
+      renderProducts(gridElement, normalized, segment);
 
       if (segment === 'personal') {
-        updateRecentViews(data.products);
+        updateRecentViews(normalized);
       }
     } else {
       gridElement.innerHTML = '<div class="empty-state">暂无推荐商品</div>';
@@ -123,15 +157,19 @@ function showSkeleton(container) {
 }
 
 function renderProducts(container, products, segment) {
-  if (!products || products.length === 0) {
+  const safeProducts = AppUI.normalizeProducts(products);
+  if (!safeProducts || safeProducts.length === 0) {
     container.innerHTML = '<div class="empty-state">暂无商品</div>';
     return;
   }
 
-  const html = products.map((product, index) => {
+  const html = safeProducts.map((product, index) => {
     const emoji = getProductEmoji(product.category);
     const explain = product.explain || {};
     const tags = buildProductTags(product, segment);
+    const stockLabel = product.inventory_status === 'out_of_stock'
+      ? '缺货'
+      : `库存${product.stock ?? '-'}`;
 
     return `
       <article class="product-card" style="animation: rise 500ms ease ${index * 50}ms both">
@@ -142,7 +180,7 @@ function renderProducts(container, products, segment) {
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
         <div class="product-meta">
           <span class="product-category">${escapeHtml(product.category || '-')}</span>
-          <span class="product-stock">库存${product.stock ?? '-'}</span>
+          <span class="product-stock">${stockLabel}</span>
         </div>
         <div class="product-price-wrapper">
           <span class="product-price">${formatPrice(product.price)}</span>
@@ -166,6 +204,12 @@ function renderProducts(container, products, segment) {
 function buildProductTags(product, segment) {
   const tags = [];
   const explain = product.explain || {};
+  const priceTagMap = {
+    discount: '立减',
+    value: '性价比',
+    low_stock: '库存紧张',
+    new: '新品'
+  };
 
   // 根据 segment 添加标签
   if (segment === 'hot') {
@@ -174,9 +218,12 @@ function buildProductTags(product, segment) {
     tags.push({ text: '新品', class: 'new' });
   }
 
-  // 根据价格添加促销标签
-  if (product.price < 200) {
-    tags.push({ text: '性价比', class: 'promo' });
+  // 根据价格标签追加
+  if (product.price_tags && Array.isArray(product.price_tags)) {
+    product.price_tags.slice(0, 2).forEach(tag => {
+      const text = priceTagMap[tag] || tag;
+      tags.push({ text: text, class: tag === 'discount' || tag === 'low_stock' ? 'promo' : '' });
+    });
   }
 
   // 根据 tags 数组添加
@@ -186,7 +233,15 @@ function buildProductTags(product, segment) {
     });
   }
 
-  tags._badge = segment === 'hot' ? 'HOT' : segment === 'new' ? 'NEW' : '';
+  if (segment === 'hot') {
+    tags._badge = 'HOT';
+  } else if (segment === 'new' || (product.badges || []).includes('new')) {
+    tags._badge = 'NEW';
+  } else if ((product.badges || []).includes('low_stock')) {
+    tags._badge = 'LOW';
+  } else {
+    tags._badge = '';
+  }
   return tags;
 }
 

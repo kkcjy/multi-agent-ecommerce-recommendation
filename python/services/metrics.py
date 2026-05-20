@@ -13,10 +13,49 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram, REGISTRY, generate_latest
 
 cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
 cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
+
+request_duration_seconds = Histogram(
+    "request_duration_seconds",
+    "HTTP request latency",
+    ["endpoint", "method"],
+)
+requests_total = Counter(
+    "requests_total",
+    "HTTP request count",
+    ["endpoint", "method", "status"],
+)
+agent_duration_seconds = Histogram(
+    "agent_duration_seconds",
+    "Agent call latency",
+    ["agent_name"],
+)
+agent_errors_total = Counter(
+    "agent_errors_total",
+    "Agent errors",
+    ["agent_name", "error_type"],
+)
+
+
+class ErrorType(str, Enum):
+    TIMEOUT = "timeout"
+    RATE_LIMIT = "rate_limit"
+    LLM = "llm"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def categorize(cls, error: str) -> "ErrorType":
+        lowered = (error or "").lower()
+        if "timeout" in lowered:
+            return cls.TIMEOUT
+        if "rate" in lowered or "429" in lowered:
+            return cls.RATE_LIMIT
+        if "llm" in lowered or "openai" in lowered or "minimax" in lowered:
+            return cls.LLM
+        return cls.UNKNOWN
 
 
 @dataclass

@@ -34,6 +34,7 @@ from models.schemas import RecommendationRequest, RecommendationResponse
 from orchestrator.supervisor import SupervisorOrchestrator
 from orchestrator.graph import build_recommendation_graph, set_container
 from services.ab_test import ABTestEngine
+from services.catalog_service import CatalogService
 from services.metrics import MetricsCollector, request_duration_seconds, requests_total
 from services.rate_limiter import InMemoryRateLimiter
 
@@ -49,6 +50,7 @@ container = AppContainer(settings=settings)
 ab_engine = ABTestEngine()
 metrics_collector = MetricsCollector()
 supervisor = SupervisorOrchestrator(container=container, ab_engine=ab_engine)
+catalog_service = CatalogService(product_repo=container.product_repo)
 rec_graph = None
 recommend_limiter = InMemoryRateLimiter(
     limit=settings.rate_limit_recommend_per_window,
@@ -307,6 +309,164 @@ def _collect_metrics(response: RecommendationResponse):
             success=result.success,
             latency_ms=result.latency_ms,
         )
+
+
+def _api_ok(data: Any, message: str = "ok") -> dict[str, Any]:
+    return {"code": 0, "message": message, "data": data}
+
+
+def _parse_csv_param(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+@app.get("/api/v1/categories")
+async def list_categories():
+    items = await catalog_service.list_categories()
+    return _api_ok({"items": items})
+
+
+@app.get("/api/v1/search")
+async def search_products(
+    q: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    sort: str | None = None,
+    category: str | None = None,
+    tag: str | None = None,
+    brand: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+):
+    items, total = await catalog_service.search_products(
+        query=q,
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        category=category,
+        tag=tag,
+        brand=brand,
+        min_price=min_price,
+        max_price=max_price,
+    )
+    return _api_ok({
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [catalog_service.serialize_product(p) for p in items],
+    })
+
+
+@app.get("/api/v1/category/{category_id}")
+async def category_products(
+    category_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    sort: str | None = None,
+    tag: str | None = None,
+    brand: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+):
+    items, total = await catalog_service.category_products(
+        category=category_id,
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        tag=tag,
+        brand=brand,
+        min_price=min_price,
+        max_price=max_price,
+    )
+    return _api_ok({
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [catalog_service.serialize_product(p) for p in items],
+    })
+
+
+@app.get("/api/v1/search/hot")
+async def hot_searches():
+    return _api_ok({"items": catalog_service.get_hot_searches()})
+
+
+@app.get("/api/v1/search/suggestions")
+async def search_suggestions(q: str = "", limit: int = 6):
+    items = await catalog_service.get_search_suggestions(query=q, limit=limit)
+    return _api_ok({"items": items})
+
+
+@app.get("/api/v1/recommendations")
+async def recommendations(
+    segment: str = "hot",
+    page: int = 1,
+    page_size: int = 8,
+    recent_views: str | None = None,
+    preferred_categories: str | None = None,
+):
+    items, total = await catalog_service.get_segment_products(
+        segment=segment,
+        page=page,
+        page_size=page_size,
+        recent_views=_parse_csv_param(recent_views),
+        preferred_categories=_parse_csv_param(preferred_categories),
+    )
+    return _api_ok({
+        "segment": segment,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [catalog_service.serialize_product(p) for p in items],
+    })
+
+
+@app.get("/api/v1/recommendations/segments")
+async def recommendation_segments(
+    page: int = 1,
+    page_size: int = 8,
+    recent_views: str | None = None,
+    preferred_categories: str | None = None,
+):
+    segments = []
+    for key, title in (
+        ("intent", "你想搜"),
+        ("hot", "站内热门"),
+        ("personal", "个性化推荐"),
+        ("new", "新品首发"),
+    ):
+        items, total = await catalog_service.get_segment_products(
+            segment=key,
+            page=page,
+            page_size=page_size,
+            recent_views=_parse_csv_param(recent_views),
+            preferred_categories=_parse_csv_param(preferred_categories),
+        )
+        segments.append({
+            "key": key,
+            "title": title,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "items": [catalog_service.serialize_product(p) for p in items],
+        })
+    return _api_ok({"segments": segments})
+
+
+@app.get("/api/v1/product/{product_id}")
+async def product_detail(product_id: str):
+    product = await catalog_service.get_product(product_id)
+    if not product:
+        return JSONResponse(
+            status_code=404,
+            content={"code": 404, "message": "Product not found", "data": {}},
+        )
+    related = await catalog_service.get_related_products(product_id)
+    return _api_ok({
+        "product": catalog_service.serialize_product(product),
+        "related_items": [catalog_service.serialize_product(p) for p in related],
+    })
 
 
 if __name__ == "__main__":

@@ -15,6 +15,13 @@ class UserSegment(str, Enum):
     CHURN_RISK = "churn_risk"
 
 
+class InventoryStatus(str, Enum):
+    IN_STOCK = "in_stock"
+    LOW_STOCK = "low_stock"
+    OUT_OF_STOCK = "out_of_stock"
+    PREORDER = "preorder"
+
+
 class UserProfile(BaseModel):
     user_id: str
     age: int | None = None
@@ -34,13 +41,26 @@ class Product(BaseModel):
     name: str
     category: str
     price: float
+    final_price: float | None = None
+    discount: float = 0.0
+    original_price: float | None = None
+    currency: str = "CNY"
     description: str = ""
     brand: str = ""
     seller_id: str = ""
     stock: int = 0
+    inventory_status: InventoryStatus = InventoryStatus.IN_STOCK
+    sales: int = 0
+    rating: float = 0.0
+    review_count: int = 0
     tags: list[str] = Field(default_factory=list)
+    price_tags: list[str] = Field(default_factory=list)
+    badges: list[str] = Field(default_factory=list)
     score: float = 0.0
     image_url: str = ""
+    image_urls: list[str] = Field(default_factory=list)
+    external_url: str = ""
+    specs: dict[str, Any] = Field(default_factory=dict)
     explain: dict[str, Any] = Field(default_factory=dict)
 
 

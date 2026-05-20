@@ -7,7 +7,7 @@ services:
       context: ./python
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8866:8866"
     environment:
       - ECOM_LLM_API_KEY=${ECOM_LLM_API_KEY:-your_api_key_here}
       - ECOM_LLM_BASE_URL=${ECOM_LLM_BASE_URL:-https://api.minimax.chat/v1}

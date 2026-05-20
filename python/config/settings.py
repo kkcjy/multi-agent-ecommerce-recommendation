@@ -41,6 +41,21 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_prefix": "ECOM_", "extra": "ignore"}
 
+    def _split_csv(self, raw: str) -> list[str]:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_origins)
+
+    @property
+    def cors_methods_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_methods)
+
+    @property
+    def cors_headers_list(self) -> list[str]:
+        return self._split_csv(self.cors_allow_headers)
+
 
 @lru_cache()
 def get_settings() -> Settings:

@@ -5,7 +5,8 @@
 const CATEGORY_EMOJI = {
   '手机': '📱', '平板': '💻', '耳机': '🎧', '配件': '🔌',
   '笔记本': '💻', '显示器': '🖥', '存储': '💾', '穿戴': '⌚',
-  '无人机': '🛸', '游戏机': '🎮'
+  '无人机': '🛸', '游戏机': '🎮', '家电': '🧺', '智能家居': '🏠',
+  '摄影': '📷', '办公设备': '🖨', '运动户外': '🏃'
 };
 
 let allProducts = [];
@@ -15,7 +16,11 @@ const HOT_SEARCH_FALLBACK = [
   { term: '平板', emoji: '💻' },
   { term: '充电器', emoji: '🔌' },
   { term: '游戏', emoji: '🎮' },
-  { term: '性价比', emoji: '💰' }
+  { term: '性价比', emoji: '💰' },
+  { term: '空调', emoji: '🧺' },
+  { term: '相机', emoji: '📷' },
+  { term: '投影仪', emoji: '🖨' },
+  { term: '露营', emoji: '🏃' }
 ];
 
 function formatPrice(price) { return '¥' + Number(price).toLocaleString('zh-CN'); }

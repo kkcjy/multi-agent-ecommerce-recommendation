@@ -15,24 +15,26 @@ from typing import Any
 
 from prometheus_client import Counter, Histogram, REGISTRY, generate_latest
 
-requests_total = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["endpoint", "method", "status"],
-)
+cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
+cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
 request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request duration in seconds",
+    "request_duration_seconds",
+    "HTTP request latency",
     ["endpoint", "method"],
+)
+requests_total = Counter(
+    "requests_total",
+    "HTTP request count",
+    ["endpoint", "method", "status"],
 )
 agent_duration_seconds = Histogram(
     "agent_duration_seconds",
-    "Agent execution duration in seconds",
+    "Agent call latency",
     ["agent_name"],
 )
 agent_errors_total = Counter(
     "agent_errors_total",
-    "Agent errors by type",
+    "Agent errors",
     ["agent_name", "error_type"],
 )
 
@@ -40,26 +42,25 @@ agent_errors_total = Counter(
 class ErrorType(str, Enum):
     TIMEOUT = "timeout"
     RATE_LIMIT = "rate_limit"
+    LLM = "llm"
     VALIDATION = "validation"
     EXTERNAL = "external"
     UNKNOWN = "unknown"
 
     @classmethod
     def categorize(cls, error: str) -> "ErrorType":
-        text = error.lower()
-        if "timeout" in text or "timed out" in text:
+        lowered = (error or "").lower()
+        if "timeout" in lowered or "timed out" in lowered:
             return cls.TIMEOUT
-        if "rate" in text or "429" in text:
+        if "rate" in lowered or "429" in lowered:
             return cls.RATE_LIMIT
-        if "validation" in text or "invalid" in text:
+        if "validation" in lowered or "invalid" in lowered:
             return cls.VALIDATION
-        if "http" in text or "connection" in text or "api" in text:
+        if "llm" in lowered or "openai" in lowered or "minimax" in lowered:
+            return cls.LLM
+        if "http" in lowered or "connection" in lowered or "api" in lowered:
             return cls.EXTERNAL
         return cls.UNKNOWN
-
-
-cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
-cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
 
 
 @dataclass
@@ -90,7 +91,6 @@ class MetricsCollector:
 
     def __init__(self, max_business_events: int = 1000, sampling_rate: int = 100):
         self._agent_metrics: dict[str, AgentMetric] = defaultdict(AgentMetric)
-        # 循环缓冲区: 固定大小，新事件覆盖旧事件
         self._business_events: deque[dict[str, Any]] = deque(maxlen=max_business_events)
         self._sampling_rate = sampling_rate
         self._request_count = 0
@@ -105,7 +105,6 @@ class MetricsCollector:
         if error:
             m.errors.append(error)
         
-        # 更新 Prometheus
         agent_duration_seconds.labels(agent_name=agent_name).observe(latency_ms / 1000.0)
         if error:
             error_type = ErrorType.categorize(error)
@@ -118,7 +117,6 @@ class MetricsCollector:
         采样: 每 sampling_rate 次请求记录 1 条事件，防止内存溢出。
         """
         self._request_count += 1
-        # 采样：每 N 次请求采 1 次
         if self._request_count % self._sampling_rate == 0:
             self._business_events.append({
                 "type": event_type,

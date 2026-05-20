@@ -33,34 +33,32 @@ class Settings(BaseSettings):
     ab_test_enabled: bool = True
     ab_test_default_bucket_count: int = 100
 
+    # Agent retry & circuit breaker
+    agent_max_retries: int = 2
+    agent_retry_backoff_factor: float = 0.5
+    agent_retry_backoff_max: float = 4.0
+    circuit_breaker_enabled: bool = False
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_window_seconds: int = 30
+
     # Agent timeouts (seconds)
     agent_timeout_user_profile: float = 5.0
     agent_timeout_product_rec: float = 8.0
     agent_timeout_marketing_copy: float = 10.0
     agent_timeout_inventory: float = 5.0
 
-    # Agent retry policy
-    agent_max_retries: int = 2
-    agent_retry_backoff_factor: float = 0.5
-    agent_retry_backoff_max: float = 4.0
+    # Request timeout (seconds)
+    request_timeout_seconds: int = 10
 
-    # Circuit breaker
-    circuit_breaker_enabled: bool = True
-    circuit_breaker_failure_threshold: int = 5
-    circuit_breaker_window_seconds: int = 60
+    # Security - admin key
+    admin_api_key: str = ""
 
-    # HTTP request timeout
-    request_timeout_seconds: float = 30.0
-
-    # Security - Admin API Key
-    admin_api_key: str = "replace_with_strong_api_key"
-
-    # Security - CORS whitelist
+    # Security - CORS
     cors_allow_origins: str = "http://localhost:8866,http://127.0.0.1:8866"
     cors_allow_methods: str = "GET,POST,OPTIONS"
     cors_allow_headers: str = "Content-Type,Authorization,X-API-Key"
 
-    # Security - Rate limit
+    # Security - rate limit
     rate_limit_enabled: bool = True
     rate_limit_window_seconds: int = 60
     rate_limit_recommend_per_window: int = 30

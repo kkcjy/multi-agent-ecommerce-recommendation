@@ -56,6 +56,11 @@ function getProductEmoji(category) {
     '穿戴': '⌚',
     '无人机': '🛸',
     '游戏机': '🎮',
+    '家电': '🧺',
+    '智能家居': '🏠',
+    '摄影': '📷',
+    '办公设备': '🖨',
+    '运动户外': '🏃',
   };
   return emojis[category] || '📦';
 }

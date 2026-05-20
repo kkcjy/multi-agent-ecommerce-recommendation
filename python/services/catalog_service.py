@@ -18,6 +18,11 @@ CATEGORY_EMOJI = {
     "穿戴": "⌚",
     "无人机": "🛸",
     "游戏机": "🎮",
+    "家电": "🧺",
+    "智能家居": "🏠",
+    "摄影": "📷",
+    "办公设备": "🖨",
+    "运动户外": "🏃",
 }
 
 HOT_SEARCHES = [
@@ -27,6 +32,10 @@ HOT_SEARCHES = [
     {"term": "充电器", "emoji": "🔌", "score": 86},
     {"term": "游戏", "emoji": "🎮", "score": 84},
     {"term": "性价比", "emoji": "💰", "score": 82},
+    {"term": "空调", "emoji": "🧺", "score": 80},
+    {"term": "相机", "emoji": "📷", "score": 78},
+    {"term": "投影仪", "emoji": "🖨", "score": 76},
+    {"term": "露营", "emoji": "🏃", "score": 74},
 ]
 
 

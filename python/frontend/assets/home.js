@@ -134,7 +134,7 @@ function renderProducts(container, products, segment) {
     const tags = buildProductTags(product, segment);
 
     return `
-      <article class="product-card" style="animation: rise 500ms ease ${index * 50}ms both">
+      <article class="product-card" data-product-id="${escapeHtml(product.product_id)}" style="animation: rise 500ms ease ${index * 50}ms both">
         <div class="product-image">
           ${emoji}
           ${tags._badge ? `<span class="product-badge">${tags._badge}</span>` : ''}
@@ -161,6 +161,12 @@ function renderProducts(container, products, segment) {
   }).join('');
 
   container.innerHTML = html;
+
+  container.querySelectorAll('.product-card[data-product-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      window.location.href = `/product/${encodeURIComponent(card.dataset.productId)}`;
+    });
+  });
 }
 
 function buildProductTags(product, segment) {

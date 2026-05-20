@@ -13,7 +13,50 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram, REGISTRY, generate_latest
+
+requests_total = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["endpoint", "method", "status"],
+)
+request_duration_seconds = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["endpoint", "method"],
+)
+agent_duration_seconds = Histogram(
+    "agent_duration_seconds",
+    "Agent execution duration in seconds",
+    ["agent_name"],
+)
+agent_errors_total = Counter(
+    "agent_errors_total",
+    "Agent errors by type",
+    ["agent_name", "error_type"],
+)
+
+
+class ErrorType(str, Enum):
+    TIMEOUT = "timeout"
+    RATE_LIMIT = "rate_limit"
+    VALIDATION = "validation"
+    EXTERNAL = "external"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def categorize(cls, error: str) -> "ErrorType":
+        text = error.lower()
+        if "timeout" in text or "timed out" in text:
+            return cls.TIMEOUT
+        if "rate" in text or "429" in text:
+            return cls.RATE_LIMIT
+        if "validation" in text or "invalid" in text:
+            return cls.VALIDATION
+        if "http" in text or "connection" in text or "api" in text:
+            return cls.EXTERNAL
+        return cls.UNKNOWN
+
 
 cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
 cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])

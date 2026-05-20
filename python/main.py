@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import quote
 import time
 import asyncio
 
@@ -171,6 +172,11 @@ async def search_portal():
     return FileResponse(os.path.join(FRONTEND_DIR, "search.html"))
 
 
+@app.get("/product/{product_id}")
+async def product_portal(product_id: str):
+    return FileResponse(os.path.join(FRONTEND_DIR, "product.html"))
+
+
 @app.get("/admin")
 async def admin_portal():
     return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))
@@ -247,6 +253,31 @@ def _enforce_user_rate_limit(user_id: str, path: str, request_ctx: Request):
             status_code=429,
             detail=f"请求过于频繁，请 {retry_after}s 后重试",
         )
+
+
+@app.get("/api/v1/product/{product_id}")
+async def get_product_detail(product_id: str):
+    """获取商品详情页所需数据。"""
+    products = await container.product_repo.get_by_ids([product_id])
+    if not products:
+        raise HTTPException(status_code=404, detail="商品不存在")
+    product = products[0]
+    data = product.model_dump()
+    price = float(data.get("price") or 0)
+    discount_rate = 0.08 if price >= 5000 else 0.06 if price >= 2000 else 0.1
+    discount = round(price * discount_rate, 2)
+    data.update(
+        {
+            "description": data.get("description")
+            or f"{data.get('brand') or 'Nova精选'} {data.get('category') or '商品'}，精选品质好物，支持规格选择、优惠展示、库存提示与相似推荐。",
+            "final_price": max(0, round(price - discount, 2)),
+            "discount": discount,
+            "sales": max(99, int(data.get("stock") or 0) * 3),
+            "rating": round(4.6 + (int(data.get("stock") or 0) % 4) * 0.1, 1),
+            "external_url": f"https://www.jd.com/Search?keyword={quote(product.name)}",
+        }
+    )
+    return {"code": 0, "message": "ok", "data": data}
 
 
 @app.get("/api/v1/experiments")

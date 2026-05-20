@@ -113,7 +113,7 @@ function performSearch(query) {
     });
 
     return `
-      <article class="product-card" style="animation: rise 500ms ease ${index * 40}ms both">
+      <article class="product-card" data-product-id="${escapeHtml(product.product_id)}" style="animation: rise 500ms ease ${index * 40}ms both">
         <div class="product-image">${emoji}</div>
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
         <div class="product-meta">
@@ -125,6 +125,12 @@ function performSearch(query) {
       </article>
     `;
   }).join('');
+
+  grid.querySelectorAll('.product-card[data-product-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      window.location.href = `/product/${encodeURIComponent(card.dataset.productId)}`;
+    });
+  });
 }
 
 // ==================== 热门搜索 ====================

@@ -39,6 +39,33 @@ class Settings(BaseSettings):
     agent_timeout_marketing_copy: float = 10.0
     agent_timeout_inventory: float = 5.0
 
+    # Agent retry policy
+    agent_max_retries: int = 2
+    agent_retry_backoff_factor: float = 0.5
+    agent_retry_backoff_max: float = 4.0
+
+    # Circuit breaker
+    circuit_breaker_enabled: bool = True
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_window_seconds: int = 60
+
+    # HTTP request timeout
+    request_timeout_seconds: float = 30.0
+
+    # Security - Admin API Key
+    admin_api_key: str = "replace_with_strong_api_key"
+
+    # Security - CORS whitelist
+    cors_allow_origins: str = "http://localhost:8866,http://127.0.0.1:8866"
+    cors_allow_methods: str = "GET,POST,OPTIONS"
+    cors_allow_headers: str = "Content-Type,Authorization,X-API-Key"
+
+    # Security - Rate limit
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_recommend_per_window: int = 30
+    rate_limit_graph_per_window: int = 20
+
     model_config = {"env_file": ".env", "env_prefix": "ECOM_", "extra": "ignore"}
 
     def _split_csv(self, raw: str) -> list[str]:

@@ -36,6 +36,7 @@ from orchestrator.supervisor import SupervisorOrchestrator
 from orchestrator.graph import build_recommendation_graph, set_container
 from services.ab_test import ABTestEngine
 from services.catalog_service import CatalogService
+from services.demo_users import get_all_demo_users, get_demo_user, is_demo_user
 from services.metrics import MetricsCollector, request_duration_seconds, requests_total
 from services.rate_limiter import InMemoryRateLimiter
 
@@ -340,6 +341,41 @@ def _collect_metrics(response: RecommendationResponse):
             success=result.success,
             latency_ms=result.latency_ms,
         )
+
+
+# ==================== 演示用户 ====================
+
+@app.get("/api/v1/demo-users")
+async def list_demo_users():
+    """获取所有预置演示用户列表（轻量摘要）。"""
+    users = get_all_demo_users()
+    return _api_ok({"items": [u.to_summary() for u in users]})
+
+
+@app.get("/api/v1/demo-users/{user_id}")
+async def get_demo_user_detail(user_id: str):
+    """获取单个演示用户的完整画像数据。"""
+    user = get_demo_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"用户 {user_id} 不存在")
+    return _api_ok(user.to_dict())
+
+
+@app.post("/api/v1/demo-users/switch")
+async def switch_demo_user(body: dict = ...):
+    """切换当前登录用户。
+
+    请求体: {"user_id": "demo_tech"}
+    返回完整用户画像 + profile dict 供前端直接使用。
+    """
+    target_id = body.get("user_id", "")
+    user = get_demo_user(target_id)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"用户 {target_id} 不存在")
+    return _api_ok({
+        "user": user.to_dict(),
+        "profile": user.to_profile_dict(),
+    })
 
 
 def _api_ok(data: Any, message: str = "ok") -> dict[str, Any]:

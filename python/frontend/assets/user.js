@@ -1,10 +1,11 @@
 /**
  * NovaCart 个人中心交互
  *
- * 功能：个性化推荐、浏览历史、收藏夹、偏好设置
+ * 功能：多用户切换、用户画像、个性化推荐、浏览历史、收藏夹、偏好设置
  */
 
 const CATEGORY_EMOJI = { '手机':'📱','平板':'💻','耳机':'🎧','配件':'🔌','笔记本':'💻','显示器':'🖥','存储':'💾','穿戴':'⌚','无人机':'🛸','游戏机':'🎮','家电':'🧺','智能家居':'🏠','摄影':'📷','办公设备':'🖨','运动户外':'🏃' };
+const SEGMENT_LABEL = { 'NEW_USER':'新用户', 'ACTIVE':'活跃用户', 'HIGH_VALUE':'高价值用户', 'PRICE_SENSITIVE':'价格敏感', 'CHURN_RISK':'流失风险' };
 
 function getEmoji(cat) { return CATEGORY_EMOJI[cat] || '📦'; }
 function formatPrice(p) { return '¥' + Number(p).toLocaleString('zh-CN'); }
@@ -13,7 +14,7 @@ function escapeHtml(text) { const d = document.createElement('div'); d.textConte
 // ==================== localStorage 工具 ====================
 function getUserId() {
   let id = localStorage.getItem('userId');
-  if (!id) { id = 'user_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('userId', id); }
+  if (!id) { id = 'demo_tech'; localStorage.setItem('userId', id); }
   return id;
 }
 
@@ -34,30 +35,138 @@ function getPrefs() {
 }
 function savePrefsToStorage(prefs) { localStorage.setItem('userPrefs', JSON.stringify(prefs)); }
 
+// ==================== 演示用户数据 ====================
+let _demoUsers = [];
+let _currentUser = null;
+
+async function fetchDemoUsers() {
+  try {
+    const data = await AppUI.fetchApiJson('/api/v1/demo-users');
+    _demoUsers = data.items || [];
+  } catch (e) {
+    console.error('加载演示用户列表失败:', e);
+  }
+}
+
+async function fetchAndSwitchUser(userId) {
+  try {
+    const data = await AppUI.fetchApiJson(`/api/v1/demo-users/${userId}`);
+    _currentUser = data;
+    localStorage.setItem('userId', userId);
+    // 同步偏好设置
+    if (data.preferred_categories) {
+      savePrefsToStorage({
+        categories: data.preferred_categories,
+        minPrice: (data.price_range || [0, 10000])[0],
+        maxPrice: (data.price_range || [0, 10000])[1]
+      });
+    }
+    return data;
+  } catch (e) {
+    console.error('切换用户失败:', e);
+    return null;
+  }
+}
+
+// ==================== 用户切换 UI ====================
+function renderUserCards() {
+  const grid = document.getElementById('userCardGrid');
+  if (!grid || _demoUsers.length === 0) return;
+
+  const currentId = getUserId();
+  grid.innerHTML = _demoUsers.map(user => {
+    const isActive = user.user_id === currentId;
+    const segLabel = (user.segments || []).map(s => SEGMENT_LABEL[s] || s).join(', ');
+    const cats = (user.preferred_categories || []).map(c => getEmoji(c) + ' ' + c).join(' ');
+    return `
+      <div class="user-card ${isActive ? 'active' : ''}" data-uid="${escapeHtml(user.user_id)}">
+        <div class="user-card-avatar">${user.avatar || '👤'}</div>
+        <div class="user-card-name">${escapeHtml(user.nickname)}</div>
+        <div class="user-card-segment">${escapeHtml(segLabel)}</div>
+        <div class="user-card-cats">${escapeHtml(cats)}</div>
+        <div class="user-card-desc">${escapeHtml(user.description || '')}</div>
+        ${isActive ? '<div class="user-card-badge">当前用户</div>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.user-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const uid = card.dataset.uid;
+      if (uid === currentId) return;
+      const result = await fetchAndSwitchUser(uid);
+      if (result) {
+        showToast(`已切换到 ${result.nickname}`);
+        closeModal();
+        location.reload();
+      }
+    });
+  });
+}
+
+function openModal() {
+  const modal = document.getElementById('switchModal');
+  if (modal) { modal.classList.add('show'); renderUserCards(); }
+}
+
+function closeModal() {
+  const modal = document.getElementById('switchModal');
+  if (modal) modal.classList.remove('show');
+}
+
 // ==================== 用户信息 ====================
 function initProfile() {
   const uid = getUserId();
-  document.getElementById('profileId').textContent = uid.slice(0, 16);
-  document.getElementById('profileName').textContent = '用户 ' + uid.slice(0, 6);
+  document.getElementById('profileId').textContent = uid;
 
-  document.getElementById('statViews').textContent = getHistory().length;
-  document.getElementById('statFavorites').textContent = getFavorites().length;
+  if (_currentUser) {
+    // 使用演示用户数据
+    document.getElementById('profileAvatar').textContent = _currentUser.avatar || '👤';
+    document.getElementById('switchAvatar').textContent = _currentUser.avatar || '👤';
+    document.getElementById('profileName').textContent = _currentUser.nickname || '用户';
+    document.getElementById('switchName').textContent = _currentUser.nickname || '未选择用户';
+    const segLabel = (_currentUser.segments || []).map(s => SEGMENT_LABEL[s] || s).join(' · ');
+    document.getElementById('switchSegment').textContent = segLabel || '';
 
-  // 加载偏好设置
-  const prefs = getPrefs();
-  document.getElementById('prefMinPrice').value = prefs.minPrice;
-  document.getElementById('prefMaxPrice').value = prefs.maxPrice;
-  document.querySelectorAll('.pref-tag').forEach(btn => {
-    btn.classList.toggle('active', prefs.categories.includes(btn.dataset.cat));
-  });
+    document.getElementById('statViews').textContent = (_currentUser.recent_views || []).length;
+    document.getElementById('statPurchases').textContent = (_currentUser.recent_purchases || []).length;
+    document.getElementById('statFavorites').textContent = getFavorites().length;
+
+    // 画像详情
+    const detail = document.getElementById('userProfileDetail');
+    if (detail) {
+      detail.style.display = '';
+      document.getElementById('detailCity').textContent = _currentUser.city || '-';
+      document.getElementById('detailAge').textContent = (_currentUser.age || '-') + '岁';
+      document.getElementById('detailSegments').textContent = segLabel || '-';
+      document.getElementById('detailLogins').textContent = String(_currentUser.login_count || 0);
+
+      const rfm = _currentUser.rfm_score || {};
+      document.getElementById('rfmRecency').style.width = ((rfm.recency || 0) * 100) + '%';
+      document.getElementById('rfmFrequency').style.width = ((rfm.frequency || 0) * 100) + '%';
+      document.getElementById('rfmMonetary').style.width = ((rfm.monetary || 0) * 100) + '%';
+    }
+
+    // 加载偏好设置
+    const prefs = getPrefs();
+    document.getElementById('prefMinPrice').value = prefs.minPrice;
+    document.getElementById('prefMaxPrice').value = prefs.maxPrice;
+    document.querySelectorAll('.pref-tag').forEach(btn => {
+      btn.classList.toggle('active', prefs.categories.includes(btn.dataset.cat));
+    });
+  } else {
+    // fallback：无画像数据
+    document.getElementById('profileName').textContent = '用户 ' + uid.slice(0, 6);
+    document.getElementById('switchName').textContent = '用户 ' + uid.slice(0, 6);
+    document.getElementById('statViews').textContent = getHistory().length;
+    document.getElementById('statFavorites').textContent = getFavorites().length;
+  }
 }
 
 // ==================== 偏好设置 ====================
 function initPrefs() {
   document.querySelectorAll('.pref-tag').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.toggle('active');
-    });
+    btn.addEventListener('click', () => { btn.classList.toggle('active'); });
   });
 
   document.getElementById('savePrefs').addEventListener('click', () => {
@@ -286,7 +395,15 @@ function showToast(msg) {
 }
 
 // ==================== 初始化 ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. 加载演示用户列表
+  await fetchDemoUsers();
+
+  // 2. 加载当前用户画像
+  const uid = getUserId();
+  await fetchAndSwitchUser(uid);
+
+  // 3. 初始化 UI
   initProfile();
   initPrefs();
   loadPersonalRecs();
@@ -300,5 +417,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
     document.getElementById('statViews').textContent = '0';
     showToast('浏览记录已清除');
+  });
+
+  // 4. 用户切换弹窗
+  document.getElementById('openSwitchModal').addEventListener('click', openModal);
+  document.getElementById('closeSwitchModal').addEventListener('click', closeModal);
+  document.getElementById('switchModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
   });
 });

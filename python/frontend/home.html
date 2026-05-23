@@ -47,6 +47,11 @@
         </nav>
 
         <div class="header-actions">
+          <div class="user-identity" id="userIdentity" style="display:none">
+            <span class="user-avatar" id="headerUserAvatar">👤</span>
+            <span class="user-name" id="headerUserName">未登录</span>
+            <span class="user-seg-tag" id="headerUserSeg"></span>
+          </div>
           <div class="search-box">
             <input type="text" placeholder="搜索商品、品牌、类目" id="headerSearch" />
             <button class="search-btn" id="headerSearchBtn">🔍</button>
@@ -143,9 +148,9 @@
             <div class="section-title-wrapper">
               <h2 class="section-title">
                 <span class="title-icon">✨</span>
-                个性化推荐
+                <span id="personalRecTitle">个性化推荐</span>
               </h2>
-              <p class="section-subtitle">AI 算法 · 懂你所想</p>
+              <p class="section-subtitle" id="personalRecSubtitle">AI 算法 · 懂你所想</p>
             </div>
             <div class="section-actions">
               <button class="refresh-btn" data-segment="personal">🔄 换一批</button>

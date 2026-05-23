@@ -37,8 +37,21 @@
     <main class="user-layout">
       <!-- 左侧：用户信息卡片 -->
       <aside class="user-sidebar">
+        <!-- 用户切换区域 -->
+        <div class="switch-card">
+          <div class="switch-current">
+            <div class="switch-avatar" id="switchAvatar">👤</div>
+            <div class="switch-info">
+              <h3 class="switch-name" id="switchName">未选择用户</h3>
+              <span class="switch-segment" id="switchSegment">点击下方按钮切换</span>
+            </div>
+          </div>
+          <button class="switch-btn" id="openSwitchModal">🔄 切换用户</button>
+        </div>
+
+        <!-- 用户画像卡片 -->
         <div class="profile-card">
-          <div class="profile-avatar">👤</div>
+          <div class="profile-avatar" id="profileAvatar">👤</div>
           <div class="profile-info">
             <h3 class="profile-name" id="profileName">用户</h3>
             <span class="profile-id" id="profileId"></span>
@@ -55,6 +68,41 @@
             <div class="stat-item">
               <span class="stat-num" id="statFavorites">0</span>
               <span class="stat-label">收藏商品</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 用户画像详情 -->
+        <div class="sidebar-card" id="userProfileDetail" style="display:none">
+          <h3 class="sidebar-title">📊 画像详情</h3>
+          <div class="detail-row">
+            <span class="detail-label">城市</span>
+            <span class="detail-value" id="detailCity">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">年龄</span>
+            <span class="detail-value" id="detailAge">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">分群</span>
+            <span class="detail-value" id="detailSegments">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">登录次数</span>
+            <span class="detail-value" id="detailLogins">-</span>
+          </div>
+          <div class="rfm-bar">
+            <div class="rfm-item">
+              <span class="rfm-label">活跃度</span>
+              <div class="rfm-track"><div class="rfm-fill" id="rfmRecency"></div></div>
+            </div>
+            <div class="rfm-item">
+              <span class="rfm-label">忠诚度</span>
+              <div class="rfm-track"><div class="rfm-fill" id="rfmFrequency"></div></div>
+            </div>
+            <div class="rfm-item">
+              <span class="rfm-label">消费力</span>
+              <div class="rfm-track"><div class="rfm-fill" id="rfmMonetary"></div></div>
             </div>
           </div>
         </div>
@@ -171,6 +219,24 @@
         <p>&copy; 2026 NovaCart. All rights reserved.</p>
       </div>
     </footer>
+
+    <!-- 用户切换弹窗 -->
+    <div class="modal-overlay" id="switchModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🔄 选择演示用户</h3>
+          <button class="modal-close" id="closeSwitchModal">✕</button>
+        </div>
+        <p class="modal-desc">不同用户有不同的偏好和画像，切换后推荐结果会变化</p>
+        <div class="user-card-grid" id="userCardGrid">
+          <div class="loading-skeleton">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="/assets/common.js"></script>
     <script src="/assets/user.js"></script>

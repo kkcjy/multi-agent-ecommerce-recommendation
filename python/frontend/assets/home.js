@@ -274,13 +274,85 @@ function escapeHtml(text) {
 }
 
 // ==================== 用户相关 ====================
+const SEGMENT_LABEL = { 'NEW_USER':'新用户', 'ACTIVE':'活跃用户', 'HIGH_VALUE':'高价值用户', 'PRICE_SENSITIVE':'价格敏感', 'CHURN_RISK':'流失风险' };
+
 function getUserId() {
   let userId = localStorage.getItem('userId');
   if (!userId) {
-    userId = 'user_' + Date.now().toString(36);
+    userId = 'demo_tech';
     localStorage.setItem('userId', userId);
   }
   return userId;
+}
+
+async function loadCurrentUser() {
+  const uid = getUserId();
+  try {
+    const data = await AppUI.fetchApiJson(`/api/v1/demo-users/${uid}`);
+    if (data && data.nickname) {
+      // 更新导航栏用户身份
+      const identity = document.getElementById('userIdentity');
+      if (identity) {
+        identity.style.display = '';
+        document.getElementById('headerUserAvatar').textContent = data.avatar || '👤';
+        document.getElementById('headerUserName').textContent = data.nickname;
+        const segLabel = (data.segments || []).map(s => SEGMENT_LABEL[s] || s).join(' · ');
+        const segTag = document.getElementById('headerUserSeg');
+        if (segTag) segTag.textContent = segLabel;
+      }
+      // 更新个性化推荐标题
+      const nameShort = (data.nickname || '').split('·').pop() || data.nickname;
+      const personalTitle = document.getElementById('personalRecTitle');
+      if (personalTitle) personalTitle.textContent = nameShort + '，为你推荐';
+      const personalSub = document.getElementById('personalRecSubtitle');
+      if (personalSub) personalSub.textContent = `基于 ${segLabel || '您的'} 画像`;
+      // 更新侧边栏用户画像卡片
+      updateSidebarProfile(data);
+      return data;
+    }
+  } catch (e) {
+    console.warn('加载当前用户信息失败:', e);
+  }
+  return null;
+}
+
+function updateSidebarProfile(userData) {
+  const container = document.getElementById('userProfile');
+  if (!container || !userData) return;
+
+  const segLabel = (userData.segments || []).map(s => SEGMENT_LABEL[s] || s).join(' · ');
+  const cats = (userData.preferred_categories || []).map(c => getProductEmoji(c) + ' ' + c).join(' ');
+  const rfm = userData.rfm_score || {};
+
+  container.innerHTML = `
+    <div class="profile-info">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+        <span style="font-size:1.5rem;">${userData.avatar || '👤'}</span>
+        <span style="font-weight:700;font-size:0.95rem;">${escapeHtml(userData.nickname)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">分群</span>
+        <span class="stat-value" style="color:var(--accent);">${escapeHtml(segLabel)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">偏好</span>
+        <span class="stat-value" style="font-size:0.75rem;">${escapeHtml(cats)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">城市</span>
+        <span class="stat-value">${escapeHtml(userData.city || '-')}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">RFM</span>
+        <span class="stat-value" style="font-size:0.7rem;">
+          R:${(rfm.recency||0).toFixed(2)} F:${(rfm.frequency||0).toFixed(2)} M:${(rfm.monetary||0).toFixed(2)}
+        </span>
+      </div>
+      <div style="margin-top:0.5rem;">
+        <a href="/user" style="color:var(--accent);font-size:0.78rem;text-decoration:none;">切换用户 →</a>
+      </div>
+    </div>
+  `;
 }
 
 function getRecentViews() {
@@ -499,6 +571,9 @@ function initSearch() {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('NovaCart Home initialized');
 
+  // 加载用户身份（并行不阻塞推荐加载）
+  loadCurrentUser();
+
   // 加载数据
   loadAllSegments();
 
@@ -511,21 +586,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 渲染最近浏览
   renderRecentViews(getRecentViews());
-
-  // 用户画像（模拟）
-  const userProfile = document.getElementById('userProfile');
-  if (userProfile) {
-    userProfile.innerHTML = `
-      <div class="profile-info">
-        <div class="profile-stat">
-          <span class="stat-label">用户 ID</span>
-          <span class="stat-value">${getUserId().slice(0, 12)}</span>
-        </div>
-        <div class="profile-stat">
-          <span class="stat-label">偏好</span>
-          <span class="stat-value">数码/配件</span>
-        </div>
-      </div>
-    `;
-  }
 });

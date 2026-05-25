@@ -441,10 +441,10 @@ cp .env.example .env
 
 # 5. 启动服务
 python main.py
-# 看到 "Uvicorn running on http://0.0.0.0:8000" 就成功了
+# 看到 "Uvicorn running on http://0.0.0.0:8866" 就成功了
 
 # 6. 测试推荐接口
-curl -X POST http://localhost:8000/api/v1/recommend \
+curl -X POST http://localhost:8866/api/v1/recommend \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "user_001",
@@ -508,7 +508,7 @@ docker-compose up -d
 docker-compose ps
 
 # 服务地址
-# Python API:  http://localhost:8000
+# Python API:  http://localhost:8866
 # Java API:    http://localhost:8080
 # Redis:       localhost:6379
 # MySQL:       localhost:3306

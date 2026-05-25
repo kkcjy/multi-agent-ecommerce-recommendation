@@ -52,6 +52,33 @@
   letter-spacing: 0.05em;
 }
 
+/* --- 导航栏用户身份 --- */
+.header-actions { display: flex; align-items: center; gap: 0.8rem; }
+.user-identity {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 0.8rem; background: rgba(13,122,105,0.06);
+  border-radius: 999px; cursor: pointer; transition: background 150ms;
+  text-decoration: none;
+}
+.user-identity:hover { background: rgba(13,122,105,0.12); }
+.user-avatar { font-size: 1.1rem; }
+.user-name { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.user-seg-tag {
+  font-size: 0.65rem; padding: 0.1rem 0.4rem;
+  background: var(--accent); color: white; border-radius: 999px;
+}
+
+/* --- 搜索框 --- */
+.search-box {
+  display: flex; align-items: center;
+  background: #f8faf9; border: 1px solid var(--line);
+  border-radius: 999px; padding: 0.3rem 0.3rem 0.3rem 0.8rem;
+  transition: all 180ms ease;
+}
+.search-box:focus-within { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(13,122,105,0.15); }
+.search-box input { border: 0; background: transparent; outline: 0; font-size: 0.85rem; width: 180px; color: var(--text); }
+.search-btn { background: var(--accent); color: #fff; border: 0; border-radius: 999px; width: 32px; height: 32px; cursor: pointer; font-size: 0.9rem; }
+
 /* 主导航 */
 .main-nav {
   display: flex;
@@ -85,48 +112,6 @@
 
 .nav-icon {
   font-size: 1.1rem;
-}
-
-/* 搜索框 */
-.search-box {
-  display: flex;
-  align-items: center;
-  background: #f8faf9;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.3rem 0.3rem 0.3rem 0.8rem;
-  transition: all 180ms ease;
-}
-
-.search-box:focus-within {
-  border-color: var(--accent);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(13, 122, 105, 0.15);
-}
-
-.search-box input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 0.85rem;
-  width: 200px;
-  color: var(--text);
-}
-
-.search-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 999px;
-  width: 36px;
-  height: 36px;
-  cursor: pointer;
-  transition: all 180ms ease;
-}
-
-.search-btn:hover {
-  background: var(--accent-2);
-  transform: scale(1.05);
 }
 
 /* --- 楼层导航 --- */

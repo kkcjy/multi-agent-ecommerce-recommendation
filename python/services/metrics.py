@@ -1,21 +1,66 @@
 """
-监控指标收集
-- Agent调用成功率 / 延迟
-- 推荐CTR / CVR / GMV
-- A/B测试实验指标
+监控指标收集与 Prometheus 集成
+- Prometheus 指标: 请求延迟、QPS、Agent 耗时、错误率、缓存命中率
+- 业务事件: CTR / CVR / GMV (采样 + 循环缓冲区)
+- A/B 测试指标
 """
 
 from __future__ import annotations
 
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram, REGISTRY, generate_latest
 
 cache_hits_total = Counter("cache_hits_total", "Cache hits", ["cache_name"])
 cache_misses_total = Counter("cache_misses_total", "Cache misses", ["cache_name"])
+request_duration_seconds = Histogram(
+    "request_duration_seconds",
+    "HTTP request latency",
+    ["endpoint", "method"],
+)
+requests_total = Counter(
+    "requests_total",
+    "HTTP request count",
+    ["endpoint", "method", "status"],
+)
+agent_duration_seconds = Histogram(
+    "agent_duration_seconds",
+    "Agent call latency",
+    ["agent_name"],
+)
+agent_errors_total = Counter(
+    "agent_errors_total",
+    "Agent errors",
+    ["agent_name", "error_type"],
+)
+
+
+class ErrorType(str, Enum):
+    TIMEOUT = "timeout"
+    RATE_LIMIT = "rate_limit"
+    LLM = "llm"
+    VALIDATION = "validation"
+    EXTERNAL = "external"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def categorize(cls, error: str) -> "ErrorType":
+        lowered = (error or "").lower()
+        if "timeout" in lowered or "timed out" in lowered:
+            return cls.TIMEOUT
+        if "rate" in lowered or "429" in lowered:
+            return cls.RATE_LIMIT
+        if "validation" in lowered or "invalid" in lowered:
+            return cls.VALIDATION
+        if "llm" in lowered or "openai" in lowered or "minimax" in lowered:
+            return cls.LLM
+        if "http" in lowered or "connection" in lowered or "api" in lowered:
+            return cls.EXTERNAL
+        return cls.UNKNOWN
 
 
 @dataclass
@@ -35,13 +80,23 @@ class AgentMetric:
 
 
 class MetricsCollector:
-    """In-memory metrics collector; swap to Prometheus in production."""
+    """
+    In-memory metrics collector + Prometheus 暴露.
+    
+    特性:
+    - 保留现有业务事件采样机制
+    - 循环缓冲区防止内存泄漏 (max_events=1000)
+    - 每 100 次请求采样 1 条业务事件
+    """
 
-    def __init__(self):
+    def __init__(self, max_business_events: int = 1000, sampling_rate: int = 100):
         self._agent_metrics: dict[str, AgentMetric] = defaultdict(AgentMetric)
-        self._business_events: list[dict[str, Any]] = []
+        self._business_events: deque[dict[str, Any]] = deque(maxlen=max_business_events)
+        self._sampling_rate = sampling_rate
+        self._request_count = 0
 
     def record_agent_call(self, agent_name: str, success: bool, latency_ms: float, error: str = ""):
+        """记录 Agent 调用，同时更新 Prometheus 指标."""
         m = self._agent_metrics[agent_name]
         m.call_count += 1
         if success:
@@ -49,14 +104,25 @@ class MetricsCollector:
         m.total_latency_ms += latency_ms
         if error:
             m.errors.append(error)
+        
+        agent_duration_seconds.labels(agent_name=agent_name).observe(latency_ms / 1000.0)
+        if error:
+            error_type = ErrorType.categorize(error)
+            agent_errors_total.labels(agent_name=agent_name, error_type=error_type.value).inc()
 
     def record_business_event(self, event_type: str, **kwargs: Any):
-        """Record CTR/CVR/GMV events for analytics."""
-        self._business_events.append({
-            "type": event_type,
-            "timestamp": time.time(),
-            **kwargs,
-        })
+        """
+        记录业务事件 (CTR/CVR/GMV)。
+        
+        采样: 每 sampling_rate 次请求记录 1 条事件，防止内存溢出。
+        """
+        self._request_count += 1
+        if self._request_count % self._sampling_rate == 0:
+            self._business_events.append({
+                "type": event_type,
+                "timestamp": time.time(),
+                **kwargs,
+            })
 
     def get_agent_stats(self) -> dict[str, dict[str, Any]]:
         result = {}
@@ -70,6 +136,7 @@ class MetricsCollector:
         return result
 
     def get_business_stats(self) -> dict[str, Any]:
+        """返回业务事件统计."""
         if not self._business_events:
             return {}
         by_type: dict[str, list[dict]] = defaultdict(list)
@@ -79,3 +146,7 @@ class MetricsCollector:
         for t, events in by_type.items():
             stats[t] = {"count": len(events)}
         return stats
+
+    def get_prometheus_metrics(self) -> bytes:
+        """获取 Prometheus 格式的指标数据."""
+        return generate_latest(REGISTRY)

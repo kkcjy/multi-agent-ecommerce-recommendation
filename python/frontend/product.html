@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品详情 - NovaCart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/product.css" />
+  </head>
+  <body class="page page-product">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="/home" class="brand-wrapper">
+          <h1 class="brand">
+            <span class="brand-icon">✨</span>
+            <span class="brand-text">NovaCart</span>
+          </h1>
+          <span class="brand-tagline">智能推荐 · 精选好物</span>
+        </a>
+
+        <nav class="main-nav">
+          <a class="nav-item" href="/home"><span class="nav-icon">🏠</span><span>首页</span></a>
+          <a class="nav-item" href="/category"><span class="nav-icon">📦</span><span>分类</span></a>
+          <a class="nav-item" href="/search"><span class="nav-icon">🔍</span><span>搜索</span></a>
+          <a class="nav-item" href="/user"><span class="nav-icon">👤</span><span>个人中心</span></a>
+        </nav>
+
+        <div class="header-actions">
+          <div class="search-box">
+            <input type="text" placeholder="搜索商品、品牌、类目" id="headerSearch" />
+            <button class="search-btn" id="headerSearchBtn" aria-label="搜索">🔍</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="product-layout">
+      <nav class="breadcrumb" aria-label="面包屑导航">
+        <a href="/home">首页</a>
+        <span>/</span>
+        <a href="/category">商品分类</a>
+        <span>/</span>
+        <span id="breadcrumbName">商品详情</span>
+      </nav>
+
+      <section class="detail-panel reveal" id="productDetail">
+        <div class="detail-loading">
+          <div class="skeleton-gallery"></div>
+          <div class="skeleton-info"></div>
+        </div>
+      </section>
+
+      <section class="content-tabs reveal delay-1" id="detailTabs" hidden>
+        <div class="tab-nav" role="tablist" aria-label="商品信息切换">
+          <button class="tab-btn active" data-tab="params" role="tab">规格参数</button>
+          <button class="tab-btn" data-tab="reviews" role="tab">用户评价</button>
+          <button class="tab-btn" data-tab="qa" role="tab">问答</button>
+          <button class="tab-btn" data-tab="service" role="tab">服务保障</button>
+        </div>
+        <div class="tab-content" id="tabContent"></div>
+      </section>
+
+      <section class="similar-section reveal delay-2" id="similarSection" hidden>
+        <div class="section-head">
+          <div>
+            <h2>相似商品与搭配推荐</h2>
+            <p class="muted">同类好物、配件搭配和更低价替代选择</p>
+          </div>
+          <a class="more-link" href="/category">查看更多</a>
+        </div>
+        <div class="product-grid" id="similarGrid"></div>
+      </section>
+    </main>
+
+    <div class="preview-modal" id="previewModal" aria-hidden="true">
+      <button class="modal-close" id="previewClose" aria-label="关闭预览">×</button>
+      <div class="preview-image" id="previewImage"></div>
+      <p id="previewCaption"></p>
+    </div>
+
+    <div class="jump-modal" id="jumpModal" aria-hidden="true">
+      <div class="jump-dialog" role="dialog" aria-modal="true" aria-labelledby="jumpTitle">
+        <button class="dialog-close" id="jumpCancelTop" aria-label="关闭">×</button>
+        <span class="dialog-icon">↗</span>
+        <h3 id="jumpTitle">即将跳转到站外低价商品</h3>
+        <p id="jumpText">站外链接由演示数据提供，请确认商品、价格与售后信息后再下单。</p>
+        <div class="jump-summary" id="jumpSummary"></div>
+        <div class="dialog-actions">
+          <button class="secondary-btn" id="jumpCancel">留在本站</button>
+          <a class="primary-btn" id="jumpConfirm" href="#" target="_blank" rel="noopener noreferrer">确认跳转</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/assets/common.js"></script>
+    <script src="/assets/product.js"></script>
+  </body>
+</html>

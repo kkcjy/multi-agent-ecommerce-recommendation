@@ -252,7 +252,10 @@ function renderProductGrid(container, products, showFavBtn) {
     return `
       <article class="product-card" data-product-id="${escapeHtml(product.product_id)}" style="animation: rise 500ms ease ${idx * 50}ms both">
         <div class="product-image">
-          ${emoji}
+          <img src="${escapeHtml(product.image_url || '')}" alt="${escapeHtml(product.name)}" loading="lazy"
+               onerror="this.style.display='none';var s=this.nextElementSibling;if(s&&s.classList.contains('product-emoji'))s.style.display=''"
+               ${!product.image_url ? ' style="display:none"' : ''} />
+          <span class="product-emoji"${product.image_url ? ' style="display:none"' : ''}>${emoji}</span>
           ${showFavBtn ? `<button class="fav-btn ${isFav ? 'favorited' : ''}" data-pid="${escapeHtml(product.product_id)}">${isFav ? '❤' : '♡'}</button>` : ''}
         </div>
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
@@ -319,7 +322,12 @@ function renderFavorites() {
 
   grid.innerHTML = favs.map((fav, idx) => `
     <article class="product-card" data-product-id="${escapeHtml(fav.product_id || '')}" style="animation: rise 500ms ease ${idx * 50}ms both">
-      <div class="product-image">${getEmoji(fav.category)}</div>
+      <div class="product-image">
+        <img src="${escapeHtml(fav.image_url || '')}" alt="${escapeHtml(fav.name)}" loading="lazy"
+             onerror="this.style.display='none';var s=this.nextElementSibling;if(s&&s.classList.contains('product-emoji'))s.style.display=''"
+             ${!fav.image_url ? ' style="display:none"' : ''} />
+        <span class="product-emoji"${fav.image_url ? ' style="display:none"' : ''}>${getEmoji(fav.category)}</span>
+      </div>
       <h3 class="product-name" title="${escapeHtml(fav.name)}">${escapeHtml(fav.name)}</h3>
       <div class="product-meta"><span class="product-category">${escapeHtml(fav.category || '-')}</span></div>
       <div class="product-price">${formatPrice(fav.price)}</div>

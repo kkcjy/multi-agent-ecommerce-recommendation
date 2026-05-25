@@ -279,7 +279,12 @@ function renderProducts(products) {
 
     return `
       <article class="product-card" data-product-id="${escapeHtml(product.product_id)}" style="animation: rise 500ms ease ${index * 40}ms both">
-        <div class="product-image">${emoji}</div>
+        <div class="product-image">
+          <img src="${escapeHtml(product.image_url || '')}" alt="${escapeHtml(product.name)}" loading="lazy"
+               onerror="this.style.display='none';var s=this.nextElementSibling;if(s&&s.classList.contains('product-emoji'))s.style.display=''"
+               ${!product.image_url ? ' style="display:none"' : ''} />
+          <span class="product-emoji"${product.image_url ? ' style="display:none"' : ''}>${emoji}</span>
+        </div>
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
         <div class="product-meta">
           <span class="product-category">${escapeHtml(product.category || '-')}</span>

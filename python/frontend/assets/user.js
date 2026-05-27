@@ -27,6 +27,8 @@ function saveHistory(items) { localStorage.setItem('viewHistory', JSON.stringify
 function getRecommendHistory() { try { return JSON.parse(localStorage.getItem('recommendHistory') || '[]'); } catch { return []; } }
 function saveRecommendHistory(items) { localStorage.setItem('recommendHistory', JSON.stringify(items.slice(0, 10))); }
 
+function getOrders() { try { return JSON.parse(localStorage.getItem('orders_' + getUserId()) || '[]'); } catch { return []; } }
+
 function getPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem('userPrefs') || '{}');
@@ -261,12 +263,23 @@ function renderProductGrid(container, products, showFavBtn) {
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
         <div class="product-meta">
           <span class="product-category">${escapeHtml(product.category || '-')}</span>
+          <span class="product-sales">已售 ${Math.max(product.sales || 0, (product.stock || 0) * 3, 99)}+</span>
         </div>
-        <div class="product-price">${formatPrice(product.price)}</div>
+        <div class="product-meta">
+          <span class="product-rating">${AppUI.ratingStars(product.rating || 4.8)} ${(product.rating || 4.8).toFixed(1)}</span>
+        </div>
+        <div class="product-price-wrapper">
+          <span class="product-price">${formatPrice(product.price)}</span>
+          ${product.originalPrice ? `<span class="product-original-price">${formatPrice(product.originalPrice)}</span>` : ''}
+          <span class="save-badge">立减 ${formatPrice(Math.max(1, Math.round(((product.originalPrice || product.price * 1.08) - product.price))))}</span>
+        </div>
         <div class="product-tags">${tags.join('')}</div>
+        ${AppUI.productCardActionsHtml(product.product_id)}
       </article>
     `;
   }).join('');
+
+  AppUI.bindCartButtons(safeProducts, container);
 
   if (showFavBtn) {
     container.querySelectorAll('.fav-btn').forEach(btn => {
@@ -386,6 +399,30 @@ function renderRecommendHistory() {
   `).join('');
 }
 
+// ==================== 订单记录 ====================
+function renderOrders() {
+  const list = document.getElementById('ordersList');
+  if (!list) return;
+  const orders = getOrders();
+  if (!orders.length) {
+    list.innerHTML = '<div class="empty-state">暂无订单记录</div>';
+    return;
+  }
+  list.innerHTML = orders.map(order => {
+    const names = (order.items || []).map(item => item.name).slice(0, 2).join('、');
+    const more = (order.items || []).length > 2 ? ` 等 ${order.items.length} 件` : '';
+    return `
+      <div class="history-item">
+        <div class="hi-left">
+          <span class="hi-icon">🧾</span>
+          <span class="hi-name">${escapeHtml(names + more || order.order_id)}<br><small class="muted">${escapeHtml(order.order_id)} · ${escapeHtml(order.created_at || '')}</small></span>
+        </div>
+        <span class="hi-meta"><strong>${formatPrice(order.total_amount || 0)}</strong><br><span class="save-badge">${escapeHtml(order.status || '已完成')}</span></span>
+      </div>
+    `;
+  }).join('');
+}
+
 // ==================== Toast ====================
 function showToast(msg) {
   let container = document.getElementById('toastContainer');
@@ -417,6 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadPersonalRecs();
   renderHistory();
   renderFavorites();
+  renderOrders();
   renderRecommendHistory();
 
   document.getElementById('refreshPersonal').addEventListener('click', loadPersonalRecs);

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>购物车 - NovaCart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/home.css" />
+  </head>
+  <body class="page page-cart">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="/home" class="brand-wrapper" style="text-decoration:none">
+          <h1 class="brand"><span class="brand-icon">✨</span><span class="brand-text">NovaCart</span></h1>
+          <span class="brand-tagline">智能推荐 · 精选好物</span>
+        </a>
+        <nav class="main-nav">
+          <a class="nav-item" href="/home"><span class="nav-icon">🏠</span><span>首页</span></a>
+          <a class="nav-item" href="/category"><span class="nav-icon">📦</span><span>分类</span></a>
+          <a class="nav-item" href="/search"><span class="nav-icon">🔍</span><span>搜索</span></a>
+          <a class="nav-item" href="/user"><span class="nav-icon">👤</span><span>个人中心</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="cart-layout">
+      <section class="cart-panel reveal">
+        <div class="cart-head">
+          <div>
+            <h2>我的购物车</h2>
+            <p class="muted" id="cartUserHint">当前用户购物车独立保存</p>
+          </div>
+          <a class="cart-continue" href="/category">继续逛逛 →</a>
+        </div>
+        <div id="cartContent" class="cart-content"></div>
+      </section>
+
+      <aside class="cart-summary-card reveal delay-1" id="cartSummary"></aside>
+    </main>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="/assets/common.js"></script>
+    <script src="/assets/order.js"></script>
+    <script src="/assets/cart.js"></script>
+  </body>
+</html>

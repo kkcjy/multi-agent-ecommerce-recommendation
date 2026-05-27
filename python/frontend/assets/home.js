@@ -174,7 +174,10 @@ function renderProducts(container, products, segment) {
     const tags = buildProductTags(product, segment);
     const stockLabel = product.inventory_status === 'out_of_stock'
       ? '缺货'
-      : `库存${product.stock ?? '-'}`;
+      : `已售 ${Math.max(product.sales || 0, (product.stock || 0) * 3, 99)}+`;
+    const rating = product.rating || 4.8;
+    const originalPrice = product.originalPrice || Math.round((product.price || 0) * 1.08);
+    const discount = Math.max(0, originalPrice - product.price);
 
     return `
       <article class="product-card" data-product-id="${escapeHtml(product.product_id)}" style="animation: rise 500ms ease ${index * 50}ms both">
@@ -188,12 +191,18 @@ function renderProducts(container, products, segment) {
         <h3 class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
         <div class="product-meta">
           <span class="product-category">${escapeHtml(product.category || '-')}</span>
-          <span class="product-stock">${stockLabel}</span>
+          <span class="product-sales">${stockLabel}</span>
+        </div>
+        <div class="product-meta">
+          <span class="product-rating">${AppUI.ratingStars(rating)} ${rating.toFixed(1)}</span>
+          <span>评价 ${product.review_count || Math.max(20, Math.floor((product.sales || 300) / 12))}</span>
         </div>
         <div class="product-price-wrapper">
           <span class="product-price">${formatPrice(product.price)}</span>
-          ${product.originalPrice ? `<span class="product-original-price">${formatPrice(product.originalPrice)}</span>` : ''}
+          ${originalPrice > product.price ? `<span class="product-original-price">${formatPrice(originalPrice)}</span>` : ''}
+          ${discount > 0 ? `<span class="save-badge">立减 ${formatPrice(discount)}</span>` : ''}
         </div>
+        ${AppUI.productCardActionsHtml(product.product_id)}
         <div class="product-tags">
           ${tags.map(tag => `<span class="product-tag ${tag.class}">${tag.text}</span>`).join('')}
         </div>
@@ -207,6 +216,7 @@ function renderProducts(container, products, segment) {
   }).join('');
 
   container.innerHTML = html;
+  AppUI.bindCartButtons(safeProducts, container);
 
   container.querySelectorAll('.product-card[data-product-id]').forEach(card => {
     card.addEventListener('click', () => {

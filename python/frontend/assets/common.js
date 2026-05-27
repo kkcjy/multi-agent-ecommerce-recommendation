@@ -181,7 +181,7 @@
     var inventoryStatus = source.inventory_status || deriveInventoryStatus(stock);
 
     return {
-      product_id: String(source.product_id || ""),
+      product_id: String(source.product_id || source.id || ""),
       name: String(source.name || ""),
       category: String(source.category || ""),
       brand: String(source.brand || ""),
@@ -194,7 +194,7 @@
       stock: stock,
       inventory_status: inventoryStatus,
       sales: normalizeNumber(source.sales, 0),
-      rating: normalizeNumber(source.rating, 0),
+      rating: normalizeNumber(source.rating || source.score, 0),
       review_count: normalizeNumber(source.review_count, 0),
       tags: tags,
       price_tags: priceTags,
@@ -206,6 +206,181 @@
       explain: source.explain || {},
     };
   }
+
+  function getCurrentUserId() {
+    var userId = localStorage.getItem("userId");
+    if (!userId) {
+      userId = "demo_tech";
+      localStorage.setItem("userId", userId);
+    }
+    return userId;
+  }
+
+  function storageKey(prefix, userId) {
+    return prefix + "_" + (userId || getCurrentUserId());
+  }
+
+  function safeJsonParse(value, fallback) {
+    try {
+      return JSON.parse(value || "");
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function getCart(userId) {
+    return safeJsonParse(localStorage.getItem(storageKey("cart", userId)), []);
+  }
+
+  function saveCart(items, userId) {
+    localStorage.setItem(storageKey("cart", userId), JSON.stringify(asArray(items)));
+    updateCartBadge();
+    try {
+      global.dispatchEvent(new CustomEvent("novacart:cart-updated", { detail: { userId: userId || getCurrentUserId() } }));
+    } catch (error) {
+      // CustomEvent is not available in very old browsers; badge already updated.
+    }
+  }
+
+  function cartCount(userId) {
+    return getCart(userId).reduce(function sum(total, item) {
+      return total + Math.max(1, normalizeNumber(item.quantity, 1));
+    }, 0);
+  }
+
+  function addToCart(product, quantity, sku, userId) {
+    var normalized = normalizeProduct(product);
+    if (!normalized.product_id) {
+      return { ok: false, message: "商品信息不完整" };
+    }
+    var qty = Math.max(1, Math.floor(normalizeNumber(quantity, 1)));
+    var currentUser = userId || getCurrentUserId();
+    var items = getCart(currentUser);
+    var skuKey = JSON.stringify(sku || {});
+    var existing = items.find(function findItem(item) {
+      return item.product_id === normalized.product_id && JSON.stringify(item.sku || {}) === skuKey;
+    });
+    if (existing) {
+      existing.quantity = Math.min(99, Math.max(1, normalizeNumber(existing.quantity, 1) + qty));
+      existing.updated_at = new Date().toISOString();
+    } else {
+      items.unshift({
+        product_id: normalized.product_id,
+        name: normalized.name,
+        category: normalized.category,
+        brand: normalized.brand,
+        price: normalized.price,
+        finalPrice: normalized.finalPrice,
+        originalPrice: normalized.originalPrice,
+        discount: normalized.discount,
+        image_url: normalized.image_url,
+        stock: normalized.stock,
+        rating: normalized.rating,
+        sales: normalized.sales,
+        quantity: qty,
+        sku: sku || {},
+        added_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+    saveCart(items, currentUser);
+    return { ok: true, count: cartCount(currentUser), items: items };
+  }
+
+  function updateCartBadge() {
+    var count = cartCount();
+    document.querySelectorAll("[data-cart-count]").forEach(function updateBadge(el) {
+      el.textContent = String(count);
+      el.style.display = count > 0 ? "inline-flex" : "none";
+    });
+  }
+
+  function ratingStars(rating) {
+    var score = Math.max(0, Math.min(5, normalizeNumber(rating, 0)));
+    var full = Math.round(score);
+    return "★★★★★".slice(0, full) + "☆☆☆☆☆".slice(0, 5 - full);
+  }
+
+  function productCardActionsHtml(productId) {
+    return '<button class="card-cart-btn" type="button" data-cart-add="' + escapeHtml(productId || "") + '">加入购物车</button>';
+  }
+
+  function toast(message, type) {
+    var container = document.getElementById("toastContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toastContainer";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    var el = document.createElement("div");
+    el.className = "toast " + (type || "");
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(function removeToast() {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(8px)";
+      setTimeout(function detach() { el.remove(); }, 220);
+    }, 2200);
+  }
+
+  function enhanceHeader() {
+    var header = document.querySelector(".site-header .header-inner") || document.querySelector(".topbar");
+    if (!header || header.querySelector(".commerce-actions")) {
+      updateCartBadge();
+      return;
+    }
+    var actions = document.createElement("div");
+    actions.className = "commerce-actions";
+    actions.innerHTML = '<button class="notify-btn" type="button" aria-label="消息通知"><span>🔔</span><span class="notify-dot"></span></button><a class="cart-link" href="/cart" aria-label="购物车"><span class="cart-icon">🛒</span><span>购物车</span><span class="cart-badge" data-cart-count>0</span></a>';
+    header.appendChild(actions);
+    updateCartBadge();
+  }
+
+  function bindCartButtons(products, root) {
+    var scope = root || document;
+    var list = normalizeProducts(products);
+    scope.querySelectorAll("[data-cart-add]").forEach(function bind(btn) {
+      if (btn.dataset.cartBound === "1") {
+        return;
+      }
+      btn.dataset.cartBound = "1";
+      btn.addEventListener("click", function onAdd(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var id = btn.dataset.cartAdd;
+        var product = list.find(function match(item) { return item.product_id === id; });
+        if (!product) {
+          toast("商品信息缺失，暂时无法加入购物车", "error");
+          return;
+        }
+        addToCart(product, 1, {});
+        toast("已加入购物车", "success");
+      });
+    });
+  }
+
+  function defaultFooterHtml() {
+    return '<footer class="site-footer"><div class="footer-inner"><div class="footer-section"><h4>关于我们</h4><a href="#">公司简介</a><a href="#">营业执照</a></div><div class="footer-section"><h4>帮助中心</h4><a href="#">购物指南</a><a href="#">退换货政策</a></div><div class="footer-section"><h4>联系客服</h4><a href="#">在线客服</a><a href="#">售后服务</a></div><div class="footer-section"><h4>隐私政策</h4><a href="#">用户协议</a><a href="#">隐私保护</a></div></div><div class="footer-bottom"><p>&copy; 2026 NovaCart · 多 Agent 智能电商推荐系统</p></div></footer>';
+  }
+
+  function ensureFooter() {
+    if (!document.querySelector(".site-footer") && document.body) {
+      document.body.insertAdjacentHTML("beforeend", defaultFooterHtml());
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function initCommonCommerce() {
+    enhanceHeader();
+    ensureFooter();
+    updateCartBadge();
+  });
+
+  global.addEventListener("storage", function onStorage(event) {
+    if (event.key && event.key.indexOf("cart_") === 0) {
+      updateCartBadge();
+    }
+  });
 
   function normalizeProducts(items) {
     return asArray(items).map(normalizeProduct);
@@ -227,5 +402,17 @@
     setStatus: setStatus,
     toInt: toInt,
     unwrapApiPayload: unwrapApiPayload,
+    getCurrentUserId: getCurrentUserId,
+    getCart: getCart,
+    saveCart: saveCart,
+    addToCart: addToCart,
+    cartCount: cartCount,
+    updateCartBadge: updateCartBadge,
+    bindCartButtons: bindCartButtons,
+    enhanceHeader: enhanceHeader,
+    ensureFooter: ensureFooter,
+    ratingStars: ratingStars,
+    productCardActionsHtml: productCardActionsHtml,
+    toast: toast,
   };
 })(window);

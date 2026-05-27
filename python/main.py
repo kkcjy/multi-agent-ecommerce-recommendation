@@ -180,6 +180,11 @@ async def product_portal(product_id: str):
     return FileResponse(os.path.join(FRONTEND_DIR, "product.html"))
 
 
+@app.get("/cart")
+async def cart_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "cart.html"))
+
+
 @app.get("/admin")
 async def admin_portal():
     return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))

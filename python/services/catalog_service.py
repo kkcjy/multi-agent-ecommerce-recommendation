@@ -324,3 +324,129 @@ class CatalogService:
         if status == InventoryStatus.LOW_STOCK.value:
             output.append("low_stock")
         return output
+
+    async def add_recommendation_reason(
+        self,
+        products: list[Product],
+        scene: str = "homepage",
+        recent_views: list[str] | None = None,
+        preferred_categories: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        为推荐结果添加推荐理由。
+        
+        Args:
+            products: 推荐的商品列表
+            scene: 推荐场景（homepage, category, search等）
+            recent_views: 用户最近浏览的商品ID
+            preferred_categories: 用户偏好的品类
+        
+        Returns:
+            包含推荐理由的产品字典列表
+        """
+        result = []
+        
+        for product in products:
+            serialized = self.serialize_product(product)
+            
+            # 生成推荐理由
+            reason = self._generate_recommendation_reason(
+                product,
+                scene=scene,
+                recent_views=recent_views or [],
+                preferred_categories=preferred_categories or [],
+            )
+            serialized["recommendation_reason"] = reason
+            result.append(serialized)
+        
+        return result
+
+    def _generate_recommendation_reason(
+        self,
+        product: Product,
+        scene: str,
+        recent_views: list[str],
+        preferred_categories: list[str],
+    ) -> str:
+        """根据上下文生成推荐理由。"""
+        reasons = []
+        
+        # 基于场景的推荐理由
+        if scene == "homepage":
+            if "新品" in (product.tags or []):
+                reasons.append("新品上市")
+            elif "旗舰" in (product.tags or []):
+                reasons.append("旗舰推荐")
+            elif product.sales >= 6000:
+                reasons.append("热销好物")
+        
+        # 基于浏览历史的推荐理由
+        if recent_views and product.category in [
+            self._get_category_from_product_id(vid, recent_views)
+            for vid in recent_views
+        ]:
+            reasons.append(f"你最近浏览了{product.category}")
+        
+        # 基于偏好品类的推荐理由
+        if preferred_categories and product.category in preferred_categories:
+            reasons.append(f"基于你对{product.category}的偏好")
+        
+        # 基于销售和评分
+        if product.sales >= 8000 and product.rating >= 4.8:
+            reasons.append("好评爆款")
+        elif product.sales >= 5000:
+            reasons.append("热销推荐")
+        
+        # 基于价格优势
+        if product.discount > 0:
+            discount_pct = int((product.discount / product.price) * 100)
+            reasons.append(f"优惠{discount_pct}元")
+        
+        # 返回第一个理由，如果没有则返回默认理由
+        if reasons:
+            return reasons[0]
+        return "为你推荐"
+
+    def _get_category_from_product_id(self, product_id: str, all_recent: list[str]) -> str:
+        """从product_id查询对应的品类（简化版，实际应查询数据库）。"""
+        # 这是一个简化实现，实际环境中应该从数据库查询
+        category_map = {
+            "P001": "手机", "P002": "手机", "P003": "手机", "P004": "手机",
+            "P006": "耳机", "P007": "耳机", "P008": "耳机", "P009": "耳机",
+            "P011": "平板", "P012": "平板", "P013": "平板",
+            "P016": "配件", "P019": "配件", "P020": "配件",
+            "P021": "笔记本", "P022": "笔记本", "P023": "笔记本",
+            "P026": "显示器", "P027": "显示器", "P029": "显示器",
+            "P036": "穿戴", "P037": "穿戴",
+        }
+        return category_map.get(product_id, "")
+
+    async def get_category_info(self, category: str) -> dict[str, Any] | None:
+        """
+        获取品类详细信息。
+        
+        Args:
+            category: 品类名称
+        
+        Returns:
+            品类信息字典，包含商品数量和价格区间
+        """
+        products = await self._repo.get_all_products(limit=1000)
+        category_products = [p for p in products if p.category == category]
+        
+        if not category_products:
+            return None
+        
+        prices = [p.final_price if p.final_price else p.price for p in category_products]
+        min_price = min(prices)
+        max_price = max(prices)
+        
+        return {
+            "category": category,
+            "count": len(category_products),
+            "min_price": float(min_price),
+            "max_price": float(max_price),
+            "avg_price": float(sum(prices) / len(prices)),
+            "emoji": CATEGORY_EMOJI.get(category, "📦"),
+        }
+

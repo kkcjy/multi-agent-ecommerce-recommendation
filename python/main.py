@@ -39,6 +39,8 @@ from services.catalog_service import CatalogService
 from services.demo_users import get_all_demo_users, get_demo_user, is_demo_user
 from services.metrics import MetricsCollector, request_duration_seconds, requests_total
 from services.rate_limiter import InMemoryRateLimiter
+from services.review_service import get_review_service
+from services.order_service import get_order_service
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -263,9 +265,9 @@ def _enforce_user_rate_limit(user_id: str, path: str, request_ctx: Request):
         )
 
 
-@app.get("/api/v1/product/{product_id}")
+@app.get("/api/v1/product-info/{product_id}")
 async def get_product_detail(product_id: str):
-    """获取商品详情页所需数据。"""
+    """获取商品详情页所需数据（原始格式）。"""
     products = await container.product_repo.get_by_ids([product_id])
     if not products:
         raise HTTPException(status_code=404, detail="商品不存在")
@@ -525,6 +527,207 @@ async def recommendation_segments(
         })
     return _api_ok({"segments": segments})
 
+
+# ==================== 评论 API ====================
+
+@app.get("/api/v1/product/{product_id}/reviews")
+async def get_product_reviews(
+    product_id: str,
+    min_rating: int | None = None,
+    page: int = 1,
+    page_size: int = 5,
+):
+    """获取商品的评论列表（分页、可按评分筛选）。"""
+    review_service = get_review_service()
+    reviews, total = review_service.get_reviews(
+        product_id=product_id,
+        min_rating=min_rating,
+        page=page,
+        page_size=page_size,
+    )
+    return _api_ok({
+        "product_id": product_id,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [
+            {
+                "review_id": r.review_id,
+                "user_nickname": r.user_nickname,
+                "rating": r.rating,
+                "content": r.content,
+                "review_time": r.review_time.isoformat(),
+                "helpful_count": r.helpful_count,
+                "user_avatar": r.user_avatar,
+            }
+            for r in reviews
+        ],
+    })
+
+
+@app.get("/api/v1/product/{product_id}/review-summary")
+async def get_review_summary(product_id: str):
+    """获取商品的评论摘要（评分分布、平均分等）。"""
+    review_service = get_review_service()
+    summary = review_service.get_review_summary(product_id)
+    if not summary:
+        return JSONResponse(
+            status_code=404,
+            content={"code": 404, "message": "No reviews found", "data": {}},
+        )
+    return _api_ok({
+        "product_id": summary.product_id,
+        "average_rating": summary.average_rating,
+        "total_count": summary.total_count,
+        "rating_distribution": summary.rating_distribution,
+        "positive_rate": summary.positive_rate,
+    })
+
+
+# ==================== 订单 API ====================
+
+@app.post("/api/v1/orders")
+async def create_order(body: dict):
+    """创建新订单。
+
+    请求体示例:
+    {
+        "user_id": "demo_tech",
+        "items": [
+            {"product_id": "P001", "quantity": 1, "price": 7999},
+            {"product_id": "P006", "quantity": 2, "price": 1899}
+        ],
+        "delivery_address": "北京市朝阳区XXX"
+    }
+    """
+    order_service = get_order_service()
+    user_id = body.get("user_id")
+    items = body.get("items", [])
+    delivery_address = body.get("delivery_address", "")
+    
+    if not user_id or not items:
+        raise HTTPException(
+            status_code=400,
+            detail="缺少必要参数: user_id, items",
+        )
+    
+    # 计算总价
+    total_price = sum(item.get("price", 0) * item.get("quantity", 1) for item in items)
+    
+    # 创建订单项
+    from services.order_service import OrderItem
+    order_items = [
+        OrderItem(
+            product_id=item.get("product_id", ""),
+            name=item.get("name", ""),
+            quantity=item.get("quantity", 1),
+            price=item.get("price", 0),
+        )
+        for item in items
+    ]
+    
+    order = order_service.create_order(
+        user_id=user_id,
+        items=order_items,
+        total_price=total_price,
+        delivery_address=delivery_address,
+    )
+    
+    return _api_ok({
+        "order_id": order.order_id,
+        "user_id": order.user_id,
+        "items": [
+            {
+                "product_id": i.product_id,
+                "name": i.name,
+                "quantity": i.quantity,
+                "price": i.price,
+            }
+            for i in order.items
+        ],
+        "total_price": order.total_price,
+        "status": order.status.value,
+        "order_time": order.order_time.isoformat(),
+        "delivery_address": order.delivery_address,
+        "estimated_delivery": order.estimated_delivery.isoformat() if order.estimated_delivery else None,
+    })
+
+
+@app.get("/api/v1/orders")
+async def list_user_orders(
+    user_id: str,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 5,
+):
+    """获取用户的订单列表（可按状态筛选）。"""
+    order_service = get_order_service()
+    orders, total = order_service.get_user_orders(
+        user_id=user_id,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+    return _api_ok({
+        "user_id": user_id,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [
+            {
+                "order_id": o.order_id,
+                "user_id": o.user_id,
+                "items": [
+                    {
+                        "product_id": i.product_id,
+                        "name": i.name,
+                        "quantity": i.quantity,
+                        "price": i.price,
+                    }
+                    for i in o.items
+                ],
+                "total_price": o.total_price,
+                "status": o.status.value,
+                "order_time": o.order_time.isoformat(),
+                "delivery_address": o.delivery_address,
+            }
+            for o in orders
+        ],
+    })
+
+
+@app.get("/api/v1/orders/{order_id}")
+async def get_order_detail(order_id: str):
+    """获取订单详情。"""
+    order_service = get_order_service()
+    order = order_service.get_order_detail(order_id)
+    if not order:
+        return JSONResponse(
+            status_code=404,
+            content={"code": 404, "message": "Order not found", "data": {}},
+        )
+    return _api_ok({
+        "order_id": order.order_id,
+        "user_id": order.user_id,
+        "items": [
+            {
+                "product_id": i.product_id,
+                "name": i.name,
+                "quantity": i.quantity,
+                "price": i.price,
+            }
+            for i in order.items
+        ],
+        "total_price": order.total_price,
+        "status": order.status.value,
+        "order_time": order.order_time.isoformat(),
+        "delivery_address": order.delivery_address,
+        "estimated_delivery": order.estimated_delivery.isoformat() if order.estimated_delivery else None,
+        "actual_delivery": order.actual_delivery.isoformat() if order.actual_delivery else None,
+    })
+
+
+# ==================== 分类 API ====================
 
 @app.get("/api/v1/product/{product_id}")
 async def product_detail(product_id: str):

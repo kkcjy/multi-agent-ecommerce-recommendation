@@ -27,6 +27,7 @@ from models.schemas import (
     UserProfileResult,
     UserSegment,
 )
+from services.demo_users import is_demo_user, get_demo_user
 from services.metrics import cache_hits_total, cache_misses_total
 
 from .base_agent import BaseAgent
@@ -87,6 +88,21 @@ class UserProfileAgent(BaseAgent):
     async def _execute(self, **kwargs: Any) -> UserProfileResult:
         user_id: str = kwargs["user_id"]
         context: dict = kwargs.get("context", {})
+        
+        # Check if user is a demo user
+        if is_demo_user(user_id):
+            demo_user = get_demo_user(user_id)
+            if demo_user:
+                profile_data = UserProfile(**demo_user.to_profile_dict())
+                logger.info("user_profile.demo_user", user_id=user_id)
+                return UserProfileResult(
+                    success=True,
+                    profile=profile_data,
+                    data={"source": "demo_user"},
+                    confidence=1.0,
+                )
+        
+        # For non-demo users, use cached profile or generate
         profile_data = await self._get_cached_profile(user_id, context)
         return UserProfileResult(
             success=True,

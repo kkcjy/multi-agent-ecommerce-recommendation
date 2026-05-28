@@ -265,7 +265,7 @@ def _enforce_user_rate_limit(user_id: str, path: str, request_ctx: Request):
         )
 
 
-@app.get("/api/v1/product-info/{product_id}")
+@app.get("/api/v1/product/{product_id}")
 async def get_product_detail(product_id: str):
     """获取商品详情页所需数据（原始格式）。"""
     products = await container.product_repo.get_by_ids([product_id])
@@ -729,7 +729,7 @@ async def get_order_detail(order_id: str):
 
 # ==================== 分类 API ====================
 
-@app.get("/api/v1/product/{product_id}")
+@app.get("/api/v1/product/{product_id}/basic")
 async def product_detail(product_id: str):
     product = await catalog_service.get_product(product_id)
     if not product:

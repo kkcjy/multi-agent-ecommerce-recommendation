@@ -259,7 +259,7 @@ async function loadSearchSegment() {
     SearchState.perSegmentPage[SearchState.segment] = SearchState.page || 1;
 
     // check simple cache first
-    const cacheKey = `${SearchState.segment}:${SearchState.page}`;
+    const cacheKey = `${SearchState.segment}:${SearchState.q || ''}:${SearchState.page}`;
     const cached = SearchState.cache[cacheKey];
     if (cached) {
       renderSearchResults(cached.items, cached.total);

@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     request_timeout_seconds: int = 10
 
     # Security - admin key
-    admin_api_key: str = ""
+    admin_api_key: str = "admin123456"
 
     # Security - CORS
     cors_allow_origins: str = "http://localhost:8866,http://127.0.0.1:8866"

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -11,12 +11,10 @@
     <link rel="stylesheet" href="/assets/home.css" />
   </head>
   <body class="page page-home">
-    <!-- 背景装饰 -->
     <div class="bg-orb orb-a"></div>
     <div class="bg-orb orb-b"></div>
     <div class="bg-orb orb-c"></div>
 
-    <!-- 头部导航 -->
     <header class="site-header">
       <div class="header-inner">
         <div class="brand-wrapper">
@@ -28,22 +26,11 @@
         </div>
 
         <nav class="main-nav">
-          <a class="nav-item active" href="/home">
-            <span class="nav-icon">🏠</span>
-            <span>首页</span>
-          </a>
-          <a class="nav-item" href="/category">
-            <span class="nav-icon">📦</span>
-            <span>分类</span>
-          </a>
-          <a class="nav-item" href="/search">
-            <span class="nav-icon">🔍</span>
-            <span>搜索</span>
-          </a>
-          <a class="nav-item" href="/user">
-            <span class="nav-icon">👤</span>
-            <span>个人中心</span>
-          </a>
+          <a class="nav-item active" href="/home"><span class="nav-icon">🏠</span><span>首页</span></a>
+          <a class="nav-item" href="/category"><span class="nav-icon">📦</span><span>分类</span></a>
+          <a class="nav-item" href="/search"><span class="nav-icon">🔍</span><span>搜索</span></a>
+          <a class="nav-item" href="/user"><span class="nav-icon">👤</span><span>个人中心</span></a>
+          <a class="nav-item" href="/admin"><span class="nav-icon">🛡️</span><span>管理员</span></a>
         </nav>
 
         <div class="header-actions">
@@ -60,7 +47,6 @@
       </div>
     </header>
 
-    <!-- 主导航/楼层导航 -->
     <div class="floor-nav" id="floorNav">
       <div class="floor-nav-inner">
         <a class="floor-item" href="#intent">你想搜</a>
@@ -71,9 +57,7 @@
     </div>
 
     <main class="home-layout">
-      <!-- 左侧：主要内容区 -->
       <section class="main-content">
-        <!-- Banner 区域 -->
         <div class="banner-section reveal">
           <div class="banner-card">
             <div class="banner-content">
@@ -89,38 +73,25 @@
           </div>
         </div>
 
-        <!-- 你想搜（搜索意图） -->
         <section class="recommend-section reveal" id="intent">
           <div class="section-header">
             <div class="section-title-wrapper">
-              <h2 class="section-title">
-                <span class="title-icon">💭</span>
-                你想搜
-              </h2>
+              <h2 class="section-title"><span class="title-icon">💭</span>你想搜</h2>
               <p class="section-subtitle">根据您的搜索历史和浏览意图推荐</p>
             </div>
             <div class="section-actions">
-              <button class="refresh-btn" data-segment="intent">🔄 换一批</button>
+              <button class="refresh-btn" data-segment="intent">换一批</button>
             </div>
           </div>
           <div class="product-grid" id="intentGrid">
-            <div class="loading-skeleton">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
+            <div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
           </div>
         </section>
 
-        <!-- 站内热门 -->
         <section class="recommend-section reveal" id="hot">
           <div class="section-header">
             <div class="section-title-wrapper">
-              <h2 class="section-title">
-                <span class="title-icon">🔥</span>
-                站内热门
-              </h2>
+              <h2 class="section-title"><span class="title-icon">🔥</span>站内热门</h2>
               <p class="section-subtitle">热销爆款 · 人气精选</p>
             </div>
             <div class="section-actions">
@@ -129,90 +100,58 @@
                 <button class="sort-tab" data-sort="price">价格</button>
                 <button class="sort-tab" data-sort="new">新品</button>
               </div>
-              <button class="refresh-btn" data-segment="hot">🔄 换一批</button>
+              <button class="refresh-btn" data-segment="hot">换一批</button>
             </div>
           </div>
           <div class="product-grid" id="hotGrid">
-            <div class="loading-skeleton">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
+            <div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
           </div>
         </section>
 
-        <!-- 个性化推荐 -->
         <section class="recommend-section reveal" id="personal">
           <div class="section-header">
             <div class="section-title-wrapper">
-              <h2 class="section-title">
-                <span class="title-icon">✨</span>
-                <span id="personalRecTitle">个性化推荐</span>
-              </h2>
+              <h2 class="section-title"><span class="title-icon">✨</span><span id="personalRecTitle">个性化推荐</span></h2>
               <p class="section-subtitle" id="personalRecSubtitle">AI 算法 · 懂你所想</p>
             </div>
             <div class="section-actions">
-              <button class="refresh-btn" data-segment="personal">🔄 换一批</button>
+              <button class="refresh-btn" data-segment="personal">换一批</button>
             </div>
           </div>
           <div class="product-grid" id="personalGrid">
-            <div class="loading-skeleton">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
+            <div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
           </div>
         </section>
 
-        <!-- 新品首发 -->
         <section class="recommend-section reveal" id="new">
           <div class="section-header">
             <div class="section-title-wrapper">
-              <h2 class="section-title">
-                <span class="title-icon">🆕</span>
-                新品首发
-              </h2>
+              <h2 class="section-title"><span class="title-icon">🆕</span>新品首发</h2>
               <p class="section-subtitle">最新上架 · 抢先体验</p>
             </div>
             <div class="section-actions">
-              <button class="refresh-btn" data-segment="new">🔄 换一批</button>
+              <button class="refresh-btn" data-segment="new">换一批</button>
             </div>
           </div>
           <div class="product-grid" id="newGrid">
-            <div class="loading-skeleton">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
+            <div class="loading-skeleton"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
           </div>
         </section>
       </section>
 
-      <!-- 右侧：侧边栏 -->
       <aside class="sidebar">
-        <!-- 用户画像卡片 -->
-        <div class="sidebar-card reveal">
+        <div class="sidebar-card reveal" style="display:none">
           <h3 class="sidebar-title">👤 用户画像</h3>
           <div class="user-profile" id="userProfile">
-            <div class="profile-placeholder">
-              <span class="profile-icon">👤</span>
-              <span class="profile-text">登录后查看更多</span>
-            </div>
+            <div class="profile-placeholder"><span class="profile-icon">👤</span><span class="profile-text">登录后查看更多</span></div>
           </div>
         </div>
 
-        <!-- 最近浏览 -->
         <div class="sidebar-card reveal delay-1">
           <h3 class="sidebar-title">👁 最近浏览</h3>
-          <div class="recent-views" id="recentViews">
-            <div class="empty-state">暂无浏览记录</div>
-          </div>
+          <div class="recent-views" id="recentViews"><div class="empty-state">暂无浏览记录</div></div>
         </div>
 
-        <!-- 筛选器 -->
         <div class="sidebar-card reveal delay-2">
           <h3 class="sidebar-title">🎯 快速筛选</h3>
           <div class="filter-group">
@@ -247,28 +186,17 @@
           <button class="apply-filter-btn" id="applyFilter">应用筛选</button>
         </div>
 
-        <!-- 活动专区 -->
         <div class="sidebar-card reveal delay-3 promo-card">
           <h3 class="sidebar-title">🎁 活动专区</h3>
           <div class="promo-content">
-            <div class="promo-item">
-              <span class="promo-badge">限时</span>
-              <span>满 300 减 30</span>
-            </div>
-            <div class="promo-item">
-              <span class="promo-badge">新人</span>
-              <span>首单立减 20</span>
-            </div>
-            <div class="promo-item">
-              <span class="promo-badge">会员</span>
-              <span>专享 95 折</span>
-            </div>
+            <div class="promo-item"><span class="promo-badge">限时</span><span>满 300 减 30</span></div>
+            <div class="promo-item"><span class="promo-badge">新人</span><span>首单立减 20</span></div>
+            <div class="promo-item"><span class="promo-badge">会员</span><span>专享 95 折</span></div>
           </div>
         </div>
       </aside>
     </main>
 
-    <!-- 页脚 -->
     <footer class="site-footer">
       <div class="footer-inner">
         <div class="footer-section">
@@ -298,14 +226,10 @@
           </div>
         </div>
       </div>
-      <div class="footer-bottom">
-        <p>&copy; 2026 NovaCart. All rights reserved.</p>
-      </div>
+      <div class="footer-bottom"><p>&copy; 2026 NovaCart. All rights reserved.</p></div>
     </footer>
 
-    <!-- 加载提示 -->
     <div class="toast-container" id="toastContainer"></div>
-
     <script src="/assets/common.js"></script>
     <script src="/assets/home.js"></script>
   </body>

@@ -81,20 +81,24 @@ function renderProductCards(grid, products) {
 }
 
 // ==================== 搜索历史 ====================
+function currentUserKey(name) {
+  return `${name}_${localStorage.getItem('userId') || 'demo_tech'}`;
+}
+
 function getSearches() {
-  try { return JSON.parse(localStorage.getItem('recentSearches') || '[]'); }
+  try { return JSON.parse(localStorage.getItem(currentUserKey('recentSearches')) || '[]'); }
   catch { return []; }
 }
 
 function saveSearch(query) {
   const searches = getSearches().filter(s => s !== query);
   searches.unshift(query);
-  localStorage.setItem('recentSearches', JSON.stringify(searches.slice(0, 10)));
+  localStorage.setItem(currentUserKey('recentSearches'), JSON.stringify(searches.slice(0, 10)));
   renderRecentSearches();
 }
 
 function clearSearches() {
-  localStorage.removeItem('recentSearches');
+  localStorage.removeItem(currentUserKey('recentSearches'));
   renderRecentSearches();
 }
 

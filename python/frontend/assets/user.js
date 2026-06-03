@@ -18,14 +18,16 @@ function getUserId() {
   return id;
 }
 
-function getFavorites() { try { return JSON.parse(localStorage.getItem('favorites') || '[]'); } catch { return []; } }
-function saveFavorites(favs) { localStorage.setItem('favorites', JSON.stringify(favs)); }
+function scopedKey(name) { return `${name}_${getUserId()}`; }
 
-function getHistory() { try { return JSON.parse(localStorage.getItem('viewHistory') || '[]'); } catch { return []; } }
-function saveHistory(items) { localStorage.setItem('viewHistory', JSON.stringify(items.slice(0, 20))); }
+function getFavorites() { try { return JSON.parse(localStorage.getItem(scopedKey('favorites')) || '[]'); } catch { return []; } }
+function saveFavorites(favs) { localStorage.setItem(scopedKey('favorites'), JSON.stringify(favs)); }
 
-function getRecommendHistory() { try { return JSON.parse(localStorage.getItem('recommendHistory') || '[]'); } catch { return []; } }
-function saveRecommendHistory(items) { localStorage.setItem('recommendHistory', JSON.stringify(items.slice(0, 10))); }
+function getHistory() { try { return JSON.parse(localStorage.getItem(scopedKey('viewHistory')) || '[]'); } catch { return []; } }
+function saveHistory(items) { localStorage.setItem(scopedKey('viewHistory'), JSON.stringify(items.slice(0, 20))); }
+
+function getRecommendHistory() { try { return JSON.parse(localStorage.getItem(scopedKey('recommendHistory')) || '[]'); } catch { return []; } }
+function saveRecommendHistory(items) { localStorage.setItem(scopedKey('recommendHistory'), JSON.stringify(items.slice(0, 10))); }
 
 function getOrders() { try { return JSON.parse(localStorage.getItem('orders_' + getUserId()) || '[]'); } catch { return []; } }
 
@@ -106,9 +108,20 @@ function renderUserCards() {
   });
 }
 
+function logoutAndSelectUser() {
+  if (window.AppUI && AppUI.logoutAuth) {
+    AppUI.logoutAuth();
+  } else {
+    localStorage.removeItem('novacartAuth');
+    localStorage.removeItem('novacartAdminApiKey');
+    localStorage.removeItem('novacartAdminName');
+  }
+  localStorage.removeItem('userId');
+  window.location.href = '/login';
+}
+
 function openModal() {
-  const modal = document.getElementById('switchModal');
-  if (modal) { modal.classList.add('show'); renderUserCards(); }
+  logoutAndSelectUser();
 }
 
 function closeModal() {
@@ -459,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('refreshPersonal').addEventListener('click', loadPersonalRecs);
   document.getElementById('clearHistory').addEventListener('click', () => {
-    localStorage.removeItem('viewHistory');
+    localStorage.removeItem(scopedKey('viewHistory'));
     renderHistory();
     document.getElementById('statViews').textContent = '0';
     showToast('浏览记录已清除');

@@ -66,7 +66,67 @@ function getProductEmoji(category) {
 }
 
 // ==================== 数据加载 ====================
+async function fetchAiRecommendationProducts(segment, numItems) {
+  const recentViews = getRecentViews();
+  const response = await AppUI.fetchJson('/api/v1/recommend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: getUserId(),
+      scene: segment,
+      num_items: numItems,
+      context: {
+        recent_views: recentViews,
+        purchase_count_30d: 2,
+        avg_order_amount: 3999
+      }
+    })
+  });
+
+  AppState.aiMeta = {
+    experimentGroup: response.experiment_group || 'control',
+    latencyMs: response.total_latency_ms || 0,
+    marketingCopies: response.marketing_copies || []
+  };
+  return response.products || [];
+}
+
+async function fetchCatalogRecommendationProducts(segment, numItems) {
+  const params = new URLSearchParams({
+    segment: segment,
+    page: '1',
+    page_size: String(numItems)
+  });
+
+  if (segment === 'intent') {
+    const recent = getRecentViews();
+    if (recent.length > 0) {
+      params.set('recent_views', recent.join(','));
+    }
+  }
+
+  if (segment === 'personal') {
+    const recent = getRecentViews();
+    if (recent.length > 0) {
+      params.set('preferred_categories', recent.join(','));
+    }
+  }
+
+  const data = await AppUI.fetchApiJson(`/api/v1/recommendations?${params.toString()}`);
+  return data.items || [];
+}
+
 async function fetchSegmentProducts(segment, numItems) {
+  if (segment === 'personal') {
+    try {
+      return await fetchAiRecommendationProducts(segment, numItems);
+    } catch (error) {
+      console.warn('AI 推荐链路失败，降级为目录推荐:', error);
+      AppState.aiMeta = { fallback: true, error: error.message || 'AI 推荐失败' };
+      return await fetchCatalogRecommendationProducts(segment, numItems);
+    }
+  }
+  return await fetchCatalogRecommendationProducts(segment, numItems);
   const params = new URLSearchParams({
     segment: segment,
     page: '1',
@@ -122,6 +182,10 @@ async function loadSegmentData(segment, numItems = 8) {
     if (normalized.length > 0) {
       AppState.segments[segment] = normalized;
       renderProducts(gridElement, normalized, segment);
+
+      if (segment === 'personal') {
+        updateAiRecommendationMeta();
+      }
 
       if (segment === 'personal') {
         updateRecentViews(normalized);
@@ -284,6 +348,21 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function updateAiRecommendationMeta() {
+  const subtitle = document.getElementById('personalRecSubtitle');
+  if (!subtitle || !AppState.aiMeta) return;
+
+  if (AppState.aiMeta.fallback) {
+    subtitle.textContent = `AI 推荐链路降级：${AppState.aiMeta.error || '使用目录推荐'}`;
+    return;
+  }
+
+  const latency = Number(AppState.aiMeta.latencyMs || 0).toFixed(0);
+  const group = AppState.aiMeta.experimentGroup || 'control';
+  const copyCount = Array.isArray(AppState.aiMeta.marketingCopies) ? AppState.aiMeta.marketingCopies.length : 0;
+  subtitle.textContent = `AI Multi-Agent 已参与：实验组 ${group} · 文案 ${copyCount} 条 · 耗时 ${latency}ms`;
 }
 
 // ==================== 用户相关 ====================
@@ -564,13 +643,15 @@ function initSearch() {
     const query = searchInput.value.trim();
     if (query) {
       // 保存到最近搜索
-      const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+      const searchKey = `recentSearches_${getUserId()}`;
+      const searches = JSON.parse(localStorage.getItem(searchKey) || '[]');
       if (!searches.includes(query)) {
         searches.unshift(query);
-        localStorage.setItem('recentSearches', JSON.stringify(searches.slice(0, 10)));
+        localStorage.setItem(searchKey, JSON.stringify(searches.slice(0, 10)));
       }
       showToast(`搜索：${query}`, 'info');
-      // TODO: 跳转到搜索结果页
+      window.location.href = `/search?q=${encodeURIComponent(query)}`;
+      // 从首页搜索栏跳转到搜索页展示结果
     }
   };
 

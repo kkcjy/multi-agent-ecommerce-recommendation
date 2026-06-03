@@ -30,6 +30,7 @@
           <a class="nav-item" href="/category"><span class="nav-icon">📦</span><span>分类</span></a>
           <a class="nav-item" href="/search"><span class="nav-icon">🔍</span><span>搜索</span></a>
           <a class="nav-item active" href="/user"><span class="nav-icon">👤</span><span>个人中心</span></a>
+          <a class="nav-item" href="/admin"><span class="nav-icon">🛡️</span><span>管理员</span></a>
         </nav>
       </div>
     </header>
@@ -43,10 +44,10 @@
             <div class="switch-avatar" id="switchAvatar">👤</div>
             <div class="switch-info">
               <h3 class="switch-name" id="switchName">未选择用户</h3>
-              <span class="switch-segment" id="switchSegment">点击下方按钮切换</span>
+              <span class="switch-segment" id="switchSegment">退出后可重新选择用户</span>
             </div>
           </div>
-          <button class="switch-btn" id="openSwitchModal">🔄 切换用户</button>
+          <button class="switch-btn" id="openSwitchModal" type="button" onclick="localStorage.removeItem('novacartAuth');localStorage.removeItem('novacartAdminApiKey');localStorage.removeItem('novacartAdminName');localStorage.removeItem('userId');window.location.href='/login';">退出登录 / 重新选择用户</button>
         </div>
 
         <!-- 用户画像卡片 -->
@@ -232,7 +233,7 @@
     </footer>
 
     <!-- 用户切换弹窗 -->
-    <div class="modal-overlay" id="switchModal">
+    <div class="modal-overlay" id="switchModal" hidden>
       <div class="modal-content">
         <div class="modal-header">
           <h3>🔄 选择演示用户</h3>

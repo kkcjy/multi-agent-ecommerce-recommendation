@@ -154,7 +154,12 @@ app.mount(
 
 @app.get("/")
 async def root():
-    return RedirectResponse(url="/home", status_code=307)
+    return RedirectResponse(url="/login", status_code=307)
+
+
+@app.get("/login")
+async def login_portal():
+    return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
 
 
 @app.get("/home")

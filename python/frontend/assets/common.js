@@ -216,6 +216,44 @@
     return userId;
   }
 
+  function getAuth() {
+    return safeJsonParse(localStorage.getItem("novacartAuth"), null);
+  }
+
+  function isLoggedIn() {
+    return !!getAuth();
+  }
+
+  function isAdminLoggedIn() {
+    var auth = getAuth();
+    return !!auth && auth.role === "admin" && !!localStorage.getItem("novacartAdminApiKey");
+  }
+
+  function logoutAuth() {
+    localStorage.removeItem("novacartAuth");
+    localStorage.removeItem("novacartAdminApiKey");
+    localStorage.removeItem("novacartAdminName");
+    localStorage.removeItem("userId");
+  }
+
+  function enforcePageAuth() {
+    var path = global.location.pathname;
+    if (path === "/login" || path === "/docs" || path === "/redoc") {
+      return;
+    }
+    if (path === "/admin") {
+      if (!isAdminLoggedIn()) {
+        global.location.href = "/login?role=admin";
+      }
+      return;
+    }
+    var protectedPaths = ["/home", "/user", "/category", "/search", "/cart"];
+    var isProductPage = path.indexOf("/product/") === 0;
+    if ((protectedPaths.indexOf(path) >= 0 || isProductPage) && !isLoggedIn()) {
+      global.location.href = "/login";
+    }
+  }
+
   function storageKey(prefix, userId) {
     return prefix + "_" + (userId || getCurrentUserId());
   }
@@ -325,6 +363,9 @@
   }
 
   function enhanceHeader() {
+    if (document.body && document.body.classList.contains("page-admin")) {
+      return;
+    }
     var header = document.querySelector(".site-header .header-inner") || document.querySelector(".topbar");
     if (!header || header.querySelector(".commerce-actions")) {
       updateCartBadge();
@@ -371,6 +412,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function initCommonCommerce() {
+    enforcePageAuth();
     enhanceHeader();
     ensureFooter();
     updateCartBadge();
@@ -402,6 +444,10 @@
     setStatus: setStatus,
     toInt: toInt,
     unwrapApiPayload: unwrapApiPayload,
+    getAuth: getAuth,
+    isLoggedIn: isLoggedIn,
+    isAdminLoggedIn: isAdminLoggedIn,
+    logoutAuth: logoutAuth,
     getCurrentUserId: getCurrentUserId,
     getCart: getCart,
     saveCart: saveCart,

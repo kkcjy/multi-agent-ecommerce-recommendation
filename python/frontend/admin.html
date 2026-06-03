@@ -1,71 +1,114 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Dashboard | Multi-Agent Recommender</title>
+    <title>管理员后台 - NovaCart</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body class="page page-admin">
     <div class="bg-orb orb-c"></div>
     <div class="bg-orb orb-d"></div>
-    <header class="topbar">
-      <h1 class="brand">NovaCart Control Room</h1>
+
+    <header class="topbar admin-topbar">
+      <div>
+        <h1 class="brand">NovaCart 管理员后台</h1>
+        <p class="admin-subtitle">推荐系统监控 · 用户行为统计 · 商品数据查看</p>
+      </div>
       <nav class="topnav">
-        <a class="nav-link" href="/user">User</a>
-        <a class="nav-link active" href="/admin">Admin</a>
-        <a class="nav-link" href="/redoc" target="_blank" rel="noreferrer">API Reference</a>
+        <a class="nav-link" href="/home">商城首页</a>
+        <a class="nav-link" href="/user">用户中心</a>
+        <a class="nav-link active" href="/admin">管理员</a>
+        <a class="nav-link" href="/docs" target="_blank" rel="noreferrer">API 文档</a>
       </nav>
     </header>
 
-    <main class="layout admin-layout">
-      <section class="panel reveal">
-        <div class="section-head">
-          <h2>Experiments</h2>
-          <button id="reloadExperiments" type="button">Refresh</button>
-        </div>
-        <div id="experimentsState" class="status subtle">Ready to load experiments.</div>
-        <div id="experimentsContainer" class="stack"></div>
-      </section>
-
-      <section class="panel reveal delay-1">
-        <div class="section-head">
-          <h2>Agent Metrics</h2>
-          <button id="reloadMetrics" type="button">Refresh</button>
-        </div>
-        <div id="metricsState" class="status subtle">Ready to load metrics.</div>
-        <div id="metricsContainer" class="stack"></div>
-      </section>
-
-      <section class="panel reveal delay-2">
-        <h2>Record Experiment Outcome</h2>
-        <form id="outcomeForm" class="form-grid">
-          <label>
-            Experiment ID
-            <input id="experimentId" type="text" value="rec_strategy" required />
-            <small class="field-hint">Must match an existing experiment id.</small>
-          </label>
-
-          <label>
-            Group Name
-            <input id="groupName" type="text" value="control" required />
-            <small class="field-hint">Use control or treatment group names from above.</small>
-          </label>
-
-          <label>
-            Success
-            <select id="isSuccess">
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </label>
-
-          <button id="outcomeSubmitBtn" type="submit">Submit Outcome</button>
+    <main class="admin-shell">
+      <section id="adminLoginPanel" style="display:none !important" hidden>
+        <form id="adminLoginForm" class="admin-login-form">
+          <input id="adminAccount" type="hidden" value="admin" />
+          <input id="adminApiKey" type="hidden" />
+          <button id="adminLoginBtn" type="submit" hidden>登录管理员后台</button>
+          <div id="adminLoginState" hidden></div>
         </form>
-        <div id="outcomeState" class="status">Ready.</div>
+      </section>
+
+      <div hidden>
+        <strong id="statExperiments">-</strong>
+        <button id="reloadExperiments" type="button"></button>
+        <div id="experimentsState"></div>
+        <div id="experimentsContainer"></div>
+        <form id="outcomeForm"><input id="experimentId" /><input id="groupName" /><select id="isSuccess"></select><button id="outcomeSubmitBtn" type="submit"></button></form>
+        <div id="outcomeState"></div>
+      </div>
+
+      <section id="adminDashboard" class="admin-dashboard" hidden>
+        <div class="admin-hero reveal">
+          <div>
+            <span class="admin-role-badge">已登录管理员</span>
+            <h2>管理员后台</h2>
+            <p>当前管理员：<strong id="adminName">admin</strong>。这里查看 Agent 调用、前台用户行为和完整商品数据。</p>
+          </div>
+          <div class="admin-actions">
+            <button id="refreshAll" type="button">刷新全部</button>
+            <button id="adminLogout" type="button" class="secondary-btn">退出登录</button>
+          </div>
+        </div>
+
+        <div class="admin-stat-grid reveal delay-1">
+          <article class="admin-stat-card">
+            <span class="stat-label">Agent 调用方</span>
+            <strong id="statAgents">-</strong>
+            <small>首页 AI 推荐后变化</small>
+          </article>
+          <article class="admin-stat-card">
+            <span class="stat-label">订单数量</span>
+            <strong id="statOrders">-</strong>
+            <small>按用户订单汇总</small>
+          </article>
+          <article class="admin-stat-card">
+            <span class="stat-label">收藏数量</span>
+            <strong id="statFavorites">-</strong>
+            <small>按用户收藏汇总</small>
+          </article>
+          <article class="admin-stat-card">
+            <span class="stat-label">商品数量</span>
+            <strong id="statCatalogProducts">-</strong>
+            <small>商品数据总量</small>
+          </article>
+        </div>
+
+        <div class="admin-grid">
+          <section class="panel reveal delay-1">
+            <div class="section-head">
+              <h2>Agent 指标</h2>
+              <button id="reloadMetrics" type="button">刷新指标</button>
+            </div>
+            <div id="metricsState" class="status subtle">等待加载指标数据。</div>
+            <div id="metricsContainer" class="stack"></div>
+          </section>
+
+          <section class="panel reveal delay-1">
+            <div class="section-head">
+              <h2>用户行为统计</h2>
+              <button id="reloadBehavior" type="button">刷新行为</button>
+            </div>
+            <div id="behaviorState" class="status subtle">等待加载前台行为数据。</div>
+            <div id="behaviorContainer" class="stack"></div>
+          </section>
+
+          <section class="panel reveal delay-2" style="grid-column:1 / -1">
+            <div class="section-head">
+              <h2>商品数据概览</h2>
+              <button id="reloadCatalog" type="button">刷新商品</button>
+            </div>
+            <div id="catalogState" class="status subtle">等待加载商品数据。</div>
+            <div id="catalogContainer" class="admin-product-list"></div>
+          </section>
+        </div>
       </section>
     </main>
 

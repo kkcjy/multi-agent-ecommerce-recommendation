@@ -7,9 +7,9 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # LLM
-    llm_api_key: str = ""
-    llm_base_url: str = "https://api.minimax.chat/v1"
-    llm_model: str = "MiniMax-M1"
+    llm_api_key: str = "sk-RfjkDtWBtFMIJYAjoTLS6DqZfPUPmlbGPcKfqi3VYnMtkU0w"
+    llm_base_url: str = "https://api.meai.cloud/v1"
+    llm_model: str = "glm-5.1"
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2048
     llm_enable_thinking: bool = False
